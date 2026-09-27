@@ -1,11 +1,37 @@
 {
   "name": "cherry",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "echo \"No linting configured\""
   },
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "keywords": [],
+  "author": {
+    "name": "Mr.J's",
+    "email": "jiang.ning.dl@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jiang-ning/cherry.git"
+  },
+  "license": "SEE LICENSE IN LICENSE",
+  "description": "",
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.2",
+    "@electron-forge/maker-deb": "^7.11.2",
+    "@electron-forge/maker-rpm": "^7.11.2",
+    "@electron-forge/maker-squirrel": "^7.11.2",
+    "@electron-forge/maker-zip": "^7.11.2",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.11.2",
+    "@electron-forge/publisher-github": "^7.11.2",
+    "electron": "^44.4.5"
+  }
 }
