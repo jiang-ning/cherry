@@ -5,6 +5,13 @@ const { contextBridge, ipcRenderer } = require("electron/renderer");
 
 contextBridge.exposeInMainWorld('electronAPI', {
   minimize: () => ipcRenderer.send('minimize'),
-  isMinimized: () => ipcRenderer.send('is-minimized'),
+  isMinimized: () => ipcRenderer.invoke('is-minimized'),
   close: () => ipcRenderer.send('close'),
+  search: (keyword) => ipcRenderer.invoke('search:start', keyword),
+  getIndexStatus: () => ipcRenderer.invoke('index:status'),
+  onIndexStatus: (callback) => {
+    const listener = (_event, status) => callback(status);
+    ipcRenderer.on('index:status', listener);
+    return () => ipcRenderer.removeListener('index:status', listener);
+  },
 });

@@ -21,8 +21,10 @@
   "license": "SEE LICENSE IN LICENSE",
   "description": "",
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "electron-squirrel-startup": "^1.0.1",
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "officeparser": "^8.0.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.2",

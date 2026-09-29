@@ -14,9 +14,86 @@ body {
 }
 
 .container {
+  background-color: #eee;
   padding: 10px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-app-region: drag;
 }
 
 #keyword {
   padding: 10px;
+}
+
+.area-search {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.area-search #keyword {
+  flex: 1;
+  min-width: 0;
+}
+
+.area-search button {
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.area-search button:disabled {
+  cursor: default;
+}
+
+#fileList {
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+.search-status {
+  padding: 6px 0;
+  color: #666;
+  font-size: 12px;
+}
+
+.file-item {
+  padding: 10px 0;
+  border-top: 1px solid #e5e5e5;
+}
+
+.file-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.file-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.file-modified {
+  flex: none;
+  color: #666;
+  font-size: 12px;
+}
+
+.file-path {
+  margin: 2px 0 6px;
+  color: #888;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.file-preview {
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.file-preview mark {
+  background: #ffe28a;
+  border-radius: 2px;
 }
