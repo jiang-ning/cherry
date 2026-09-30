@@ -3,7 +3,7 @@ module.exports = {
     asar: true
   },
   rebuildConfig: {
-    onlyModules: ['better-sqlite3']
+    onlyModules: []
   },
   makers: [
     {
