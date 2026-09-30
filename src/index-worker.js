@@ -12,14 +12,49 @@ const WAIT_MS = 2000;
 const index = new FileIndex(workerData.databasePath);
 const roots = workerData.roots;
 let idle = false;
+// Until the first full index exists, index everything right away instead of waiting for idle time.
+let initialIndexing = !index.isInitialIndexDone();
+let scanCompleted = false;
 let scanning = false;
 let lastError = null;
 let lastStatusAt = 0;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// setTimeout has ~15ms resolution on Windows, so zero-length pauses yield with setImmediate instead.
+const pause = (ms) => (ms ? sleep(ms) : new Promise((resolve) => setImmediate(resolve)));
 
 function currentStatus() {
-  return { ...index.stats(), scanning, idle, root: roots[0], error: lastError };
+  return { ...index.stats(), scanning, idle, initialIndexing, root: roots[0], error: lastError };
+}
+
+// Returns { directory } or { file } for entries worth visiting, otherwise null.
+async function describeEntry(directory, entry) {
+  const entryPath = path.join(directory, entry.name);
+  let isDirectory = entry.isDirectory();
+  let isFile = entry.isFile();
+  let stats;
+
+  // Windows reports every reparse point as a link, including OneDrive/cloud-synced files and folders.
+  // lstat still reports real symlinks and junctions as links, so those stay unfollowed.
+  if (entry.isSymbolicLink() && process.platform === 'win32') {
+    try {
+      stats = await fs.lstat(entryPath);
+    } catch {
+      return null;
+    }
+    isDirectory = stats.isDirectory();
+    isFile = stats.isFile();
+  }
+
+  if (isDirectory) return isIgnoredDirectory(entry.name) ? null : { directory: entryPath };
+  if (!isFile || !isSupportedFile(entry.name)) return null;
+  try {
+    stats ??= await fs.stat(entryPath);
+    return { file: { path: entryPath, modifiedMs: stats.mtimeMs, size: stats.size } };
+  } catch {
+    // Locked or vanished files are picked up on the next scan.
+    return null;
+  }
 }
 
 function postStatus(force = false) {
@@ -46,29 +81,24 @@ async function scan() {
       continue;
     }
 
+    const described = await Promise.all(entries.map((entry) => describeEntry(directory, entry)));
+
     const files = [];
-    for (const entry of entries) {
-      const entryPath = path.join(directory, entry.name);
-      // Dirent reports symlinks and junctions as neither directory nor file, so they are not followed.
-      if (entry.isDirectory()) {
-        if (!isIgnoredDirectory(entry.name)) queue.push(entryPath);
-      } else if (entry.isFile() && isSupportedFile(entry.name)) {
-        try {
-          const stats = await fs.stat(entryPath);
-          files.push({ path: entryPath, modifiedMs: stats.mtimeMs, size: stats.size });
-        } catch {
-          // Locked or vanished files are picked up on the next scan.
-        }
-      }
+    for (const item of described) {
+      if (item?.directory) queue.push(item.directory);
+      else if (item?.file) files.push(item.file);
     }
 
     index.recordFiles(files, scanId);
     postStatus();
-    await sleep(idle ? 0 : 5);
+    await pause(idle || initialIndexing ? 0 : 5);
   }
 
   // An unreadable root would otherwise look like every file was deleted.
-  if (rootsReadable) index.finishScan(scanId);
+  if (rootsReadable) {
+    index.finishScan(scanId);
+    scanCompleted = true;
+  }
   scanning = false;
   postStatus(true);
 }
@@ -91,9 +121,15 @@ async function indexLoop() {
   for (;;) {
     try {
       const file = index.nextPending();
+      if (!file && initialIndexing && scanCompleted) {
+        index.markInitialIndexDone();
+        initialIndexing = false;
+        postStatus(true);
+      }
+      const eager = idle || initialIndexing;
       const isRecent = file && file.modifiedMs >= Date.now() - RECENT_WINDOW_MS;
       // Pending files come newest first, so an old one at the top means only old files remain.
-      if (!file || (!isRecent && !idle)) {
+      if (!file || (!isRecent && !eager)) {
         await sleep(WAIT_MS);
         continue;
       }
@@ -106,7 +142,7 @@ async function indexLoop() {
         index.markSkipped(file.id);
       }
       postStatus();
-      await sleep(idle ? 10 : 200);
+      await pause(eager ? 0 : 200);
     } catch (error) {
       lastError = error.message;
       postStatus(true);

@@ -25,6 +25,15 @@ body {
 
 #keyword {
   padding: 10px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* On Windows, drag regions swallow mouse input, so interactive parts must opt out. */
+.container input,
+.container button,
+#fileList {
+  -webkit-app-region: no-drag;
 }
 
 .area-search {

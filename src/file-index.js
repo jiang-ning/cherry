@@ -42,6 +42,7 @@ class FileIndex {
         content TEXT NOT NULL DEFAULT ''
       );
       CREATE INDEX IF NOT EXISTS files_by_state ON files(state, modified_ms DESC);
+      CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
       -- Trigram tokens give case-insensitive substring matching, including for CJK text.
       CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
@@ -75,6 +76,10 @@ class FileIndex {
       for (const file of files) recordFile.run({ ...file, scanId });
     });
 
+    this.initialIndexDoneStatement = this.db.prepare("SELECT 1 FROM meta WHERE key = 'initial_index_done'");
+    this.markInitialIndexDoneStatement = this.db.prepare(
+      "INSERT OR REPLACE INTO meta(key, value) VALUES ('initial_index_done', '1')"
+    );
     this.removeUnseenStatement = this.db.prepare('DELETE FROM files WHERE seen_scan < ?');
     this.nextPendingStatement = this.db.prepare(`
       SELECT id, path, modified_ms AS modifiedMs, size
@@ -115,6 +120,14 @@ class FileIndex {
 
   finishScan(scanId) {
     this.removeUnseenStatement.run(scanId);
+  }
+
+  isInitialIndexDone() {
+    return Boolean(this.initialIndexDoneStatement.get());
+  }
+
+  markInitialIndexDone() {
+    this.markInitialIndexDoneStatement.run();
   }
 
   nextPending() {

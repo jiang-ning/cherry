@@ -19,7 +19,10 @@ function describeIndex(status) {
   if (status.error) return `Index error: ${status.error}`;
   const parts = [`${status.indexed.toLocaleString()} files indexed in ${status.root}`];
   if (status.pending) {
-    parts.push(`${status.pending.toLocaleString()} waiting${status.idle ? '' : ' (older files are indexed when the computer is idle)'}`);
+    const note = status.initialIndexing
+      ? ' (first-time indexing, newest files first)'
+      : status.idle ? '' : ' (older files are indexed when the computer is idle)';
+    parts.push(`${status.pending.toLocaleString()} waiting${note}`);
   }
   if (status.scanning) parts.push('checking for changes');
   return parts.join(' • ');
