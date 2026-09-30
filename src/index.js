@@ -5,7 +5,7 @@ const { randomUUID } = require('crypto');
 const { Worker } = require('worker_threads');
 
 const IDLE_THRESHOLD_SECONDS = 60;
-const IMAGES_DIR = path.join(__dirname, '..', 'images');
+const IMAGES_DIR = path.join(__dirname, 'images');
 
 let mainWindow;
 let tray;
