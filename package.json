@@ -19,7 +19,7 @@
     "url": "https://github.com/jiang-ning/cherry.git"
   },
   "license": "SEE LICENSE IN LICENSE",
-  "description": "",
+  "description": "A desktop app that searches the contents of files in your Documents folder for a keyword.",
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "electron-squirrel-startup": "^1.0.1",
