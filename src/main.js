@@ -89,6 +89,7 @@ async function runSearch() {
   }
 
   const searchId = ++currentSearchId;
+  fileList.hidden = false;
   statusLine = document.createElement('div');
   statusLine.className = 'search-status';
   fileList.replaceChildren(statusLine);
@@ -121,7 +122,15 @@ window.electronAPI.getIndexStatus().then((status) => {
   if (currentSearchId === 0) showIdleStatus();
 });
 
+// Window height follows the content; +2 covers the body border.
+new ResizeObserver(() => {
+  window.electronAPI.resizeToContent(document.querySelector('.container').offsetHeight + 2);
+}).observe(document.querySelector('.container'));
+
 searchButton.addEventListener('click', runSearch);
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') window.electronAPI.hideToTray();
+});
 keywordInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') runSearch();
 });

@@ -57,8 +57,12 @@ body {
 }
 
 #fileList {
-  height: calc(100vh - 80px);
+  max-height: calc(100vh - 80px);
   overflow-y: auto;
+}
+
+#fileList[hidden] {
+  display: none;
 }
 
 .search-status {
@@ -70,6 +74,14 @@ body {
 .file-item {
   padding: 10px 0;
   border-top: 1px solid #e5e5e5;
+  animation: result-in 200ms ease-out both;
+}
+
+@keyframes result-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 
 .file-header {

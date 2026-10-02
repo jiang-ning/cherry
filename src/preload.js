@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimize: () => ipcRenderer.send('minimize'),
   isMinimized: () => ipcRenderer.invoke('is-minimized'),
   close: () => ipcRenderer.send('close'),
+  hideToTray: () => ipcRenderer.send('hide-to-tray'),
+  resizeToContent: (height) => ipcRenderer.send('resize-to-content', height),
   search: (keyword) => ipcRenderer.invoke('search:start', keyword),
   getIndexStatus: () => ipcRenderer.invoke('index:status'),
   onIndexStatus: (callback) => {

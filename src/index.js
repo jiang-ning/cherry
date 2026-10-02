@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { randomUUID } = require('crypto');
@@ -19,9 +19,9 @@ const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 800,
-    height: 600,
+    height: 80,
     minWidth: 360,
-    minHeight: 190,
+    minHeight: 60,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -83,6 +83,31 @@ ipcMain.on('minimize', (event) => {
 
 ipcMain.handle('is-minimized', (event) => {
   return BrowserWindow.fromWebContents(event.sender)?.isMinimized() ?? false;
+});
+
+let resizeTimer;
+
+ipcMain.on('resize-to-content', (event, height) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || !Number.isFinite(height)) return;
+  const { workArea } = screen.getDisplayMatching(win.getBounds());
+  const [width, startHeight] = win.getContentSize();
+  const target = Math.max(60, Math.min(Math.ceil(height), workArea.height));
+  clearInterval(resizeTimer);
+  const DURATION_MS = 100;
+  const startTime = Date.now();
+  resizeTimer = setInterval(() => {
+    if (win.isDestroyed()) return clearInterval(resizeTimer);
+    const t = Math.min(1, (Date.now() - startTime) / DURATION_MS);
+    const eased = 1 - (1 - t) ** 3;
+    win.setContentSize(width, Math.round(startHeight + (target - startHeight) * eased));
+    if (t === 1) clearInterval(resizeTimer);
+  }, 16);
+});
+
+ipcMain.on('hide-to-tray', (event) => {
+  if (process.platform !== 'win32') return;
+  BrowserWindow.fromWebContents(event.sender)?.hide();
 });
 
 ipcMain.on('close', (event) => {
@@ -169,6 +194,7 @@ if(!app.requestSingleInstanceLock()) {
     startIndexWorker();
     createWindow();
     createTray();
+    if (process.platform === 'win32') globalShortcut.register('Control+Shift+Space', showMainWindow);
   });
 }
 
