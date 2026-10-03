@@ -6,27 +6,33 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
     Arial, sans-serif;
+  cursor: default;
   margin: auto;
   overflow: hidden;
-  border: 1px solid #ccc;
-  border-radius: 10px;
   width: calc(100% - 3px);
 }
 
 .container {
-  background-color: #eee;
-  padding: 10px;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  -webkit-app-region: drag;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 30px;
+  box-shadow: 0 0 16px #00000033;
+  margin: 20px;
+  padding: 10px 16px;
 }
 
 #keyword {
-  padding: 10px;
+  padding: 5px 16px;
   -webkit-user-select: text;
   user-select: text;
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  height: 30px;
+  line-height: 30px;
+  font-size: 1rem;
+  border-radius: 30px;
 }
 
 /* On Windows, drag regions swallow mouse input, so interactive parts must opt out. */
@@ -39,26 +45,13 @@ body {
 .area-search {
   display: flex;
   gap: 8px;
-  margin-bottom: 10px;
-}
-
-.area-search #keyword {
-  flex: 1;
-  min-width: 0;
-}
-
-.area-search button {
-  padding: 0 14px;
-  cursor: pointer;
-}
-
-.area-search button:disabled {
-  cursor: default;
 }
 
 #fileList {
   max-height: 500px;
   overflow-y: auto;
+  border-top: 1px solid #ccc;
+  padding: 10px 0;
 }
 
 #fileList[hidden] {
@@ -69,11 +62,11 @@ body {
   padding: 6px 0;
   color: #666;
   font-size: 12px;
+  display: none;
 }
 
 .file-item {
   padding: 10px 0;
-  border-top: 1px solid #e5e5e5;
 }
 
 /* Animate only when the list first appears, not on every keystroke. */

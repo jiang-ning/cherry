@@ -19,10 +19,12 @@ const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 800,
-    height: 80,
+    height: 100,
     center: true,
-    minWidth: 360,
-    minHeight: 60,
+    minWidth: 800,
+    maxWidth: 800,
+    minHeight: 100,
+    resizeable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -48,7 +50,7 @@ const createWindow = () => {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 
 };
 
@@ -65,6 +67,7 @@ function showMainWindow() {
 function createTray() {
   tray = new Tray(path.join(IMAGES_DIR, 'tray.png'));
   tray.setToolTip('WithinFile');
+  tray.on('double-click', showMainWindow);
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open WithinFile', click: showMainWindow },
     { type: 'separator' },
