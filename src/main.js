@@ -122,8 +122,13 @@ window.electronAPI.getIndexStatus().then((status) => {
 });
 
 // Window height follows the content; +2 covers the body border.
+let resizeFrame = 0;
 new ResizeObserver(() => {
-  window.electronAPI.resizeToContent(document.querySelector('.container').offsetHeight + 2);
+  // Coalesce bursts (results rendering incrementally) into one animation target.
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => {
+    window.electronAPI.resizeToContent(document.querySelector('.container').offsetHeight + 2);
+  });
 }).observe(document.querySelector('.container'));
 
 document.addEventListener('keydown', (event) => {

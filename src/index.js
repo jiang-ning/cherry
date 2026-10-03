@@ -96,12 +96,14 @@ ipcMain.on('resize-to-content', (event, height) => {
   const startHeight = win.getContentSize()[1];
   const target = Math.max(60, Math.min(Math.ceil(height), workArea.height));
   clearInterval(resizeTimer);
-  const DURATION_MS = 100;
+  if (target === startHeight) return;
+  // Longer for bigger jumps (e.g. 0 -> many results) so it doesn't snap.
+  const DURATION_MS = Math.min(320, 140 + Math.abs(target - startHeight) * 0.5);
   const startTime = Date.now();
   resizeTimer = setInterval(() => {
     if (win.isDestroyed()) return clearInterval(resizeTimer);
     const t = Math.min(1, (Date.now() - startTime) / DURATION_MS);
-    const eased = 1 - (1 - t) ** 3;
+    const eased = 1 - (1 - t) ** 4;
     const h = Math.round(startHeight + (target - startHeight) * eased);
     // Keep the window vertically centered on the display as it grows.
     win.setBounds({ x, y: Math.round(workArea.y + (workArea.height - h) / 2), width, height: h });
