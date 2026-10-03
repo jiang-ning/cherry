@@ -1,6 +1,4 @@
 const keywordInput = document.getElementById('keyword');
-const searchButton = document.getElementById('search');
-const cancelButton = document.getElementById('cancel');
 const fileList = document.getElementById('fileList');
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -8,7 +6,7 @@ let currentSearchId = 0;
 let statusLine;
 let indexStatus = null;
 
-cancelButton.disabled = true;
+let debounceTimer;
 
 function setStatus(message) {
   statusLine.textContent = message;
@@ -76,39 +74,40 @@ function renderFile(file) {
   return item;
 }
 
-function setSearching(isSearching) {
-  searchButton.disabled = isSearching;
-  cancelButton.disabled = !isSearching;
-}
-
 async function runSearch() {
   const keyword = keywordInput.value.trim();
   if (!keyword) {
-    keywordInput.focus();
+    currentSearchId += 1;
+    fileList.hidden = true;
+    fileList.classList.remove('reveal');
     return;
   }
 
   const searchId = ++currentSearchId;
-  fileList.hidden = false;
-  statusLine = document.createElement('div');
-  statusLine.className = 'search-status';
-  fileList.replaceChildren(statusLine);
-  setStatus(`Searching for "${keyword}"…`);
-  setSearching(true);
 
   try {
     const { results, limitReached, status } = await window.electronAPI.search(keyword);
     if (searchId !== currentSearchId) return;
     indexStatus = status;
-    for (const file of results) fileList.append(renderFile(file));
 
     const details = [`${results.length} matched files`, describeIndex(status)];
     if (limitReached) details.push(`showing the ${results.length} most recently modified`);
-    setStatus(details.join(` • `));
+    showResults(details.join(` • `), results.map(renderFile));
   } catch (error) {
-    if (searchId === currentSearchId) setStatus(`Search failed: ${error.message}`);
-  } finally {
-    if (searchId === currentSearchId) setSearching(false);
+    if (searchId === currentSearchId) showResults(`Search failed: ${error.message}`, []);
+  }
+}
+
+// Swap content in one step; the previous list stays visible until then, so the window never collapses between searches.
+function showResults(summary, items) {
+  statusLine = document.createElement('div');
+  statusLine.className = 'search-status';
+  statusLine.textContent = summary;
+  fileList.replaceChildren(statusLine, ...items);
+  if (fileList.hidden) {
+    fileList.classList.add('reveal');
+    fileList.hidden = false;
+    setTimeout(() => fileList.classList.remove('reveal'), 250);
   }
 }
 
@@ -127,15 +126,10 @@ new ResizeObserver(() => {
   window.electronAPI.resizeToContent(document.querySelector('.container').offsetHeight + 2);
 }).observe(document.querySelector('.container'));
 
-searchButton.addEventListener('click', runSearch);
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') window.electronAPI.hideToTray();
 });
-keywordInput.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter') runSearch();
-});
-cancelButton.addEventListener('click', () => {
-  currentSearchId += 1;
-  setSearching(false);
-  setStatus('Search cancelled');
+keywordInput.addEventListener('input', () => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(runSearch, 150);
 });

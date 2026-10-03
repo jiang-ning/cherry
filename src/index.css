@@ -57,7 +57,7 @@ body {
 }
 
 #fileList {
-  max-height: calc(100vh - 80px);
+  max-height: 500px;
   overflow-y: auto;
 }
 
@@ -74,6 +74,10 @@ body {
 .file-item {
   padding: 10px 0;
   border-top: 1px solid #e5e5e5;
+}
+
+/* Animate only when the list first appears, not on every keystroke. */
+#fileList.reveal .file-item {
   animation: result-in 200ms ease-out both;
 }
 

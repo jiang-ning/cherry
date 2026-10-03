@@ -20,6 +20,7 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 80,
+    center: true,
     minWidth: 360,
     minHeight: 60,
     webPreferences: {
@@ -47,7 +48,7 @@ const createWindow = () => {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 
 };
 
@@ -91,7 +92,8 @@ ipcMain.on('resize-to-content', (event, height) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win || !Number.isFinite(height)) return;
   const { workArea } = screen.getDisplayMatching(win.getBounds());
-  const [width, startHeight] = win.getContentSize();
+  const {width, x} = win.getBounds();
+  const startHeight = win.getContentSize()[1];
   const target = Math.max(60, Math.min(Math.ceil(height), workArea.height));
   clearInterval(resizeTimer);
   const DURATION_MS = 100;
@@ -100,7 +102,9 @@ ipcMain.on('resize-to-content', (event, height) => {
     if (win.isDestroyed()) return clearInterval(resizeTimer);
     const t = Math.min(1, (Date.now() - startTime) / DURATION_MS);
     const eased = 1 - (1 - t) ** 3;
-    win.setContentSize(width, Math.round(startHeight + (target - startHeight) * eased));
+    const h = Math.round(startHeight + (target - startHeight) * eased);
+    // Keep the window vertically centered on the display as it grows.
+    win.setBounds({ x, y: Math.round(workArea.y + (workArea.height - h) / 2), width, height: h });
     if (t === 1) clearInterval(resizeTimer);
   }, 16);
 });
