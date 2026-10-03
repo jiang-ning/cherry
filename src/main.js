@@ -60,11 +60,13 @@ function renderFile(file) {
   modified.className = 'file-modified';
   modified.dateTime = new Date(file.modified).toISOString();
   modified.textContent = dateFormat.format(file.modified);
-  header.append(name, modified);
+  header.append(name);
 
   const location = document.createElement('div');
   location.className = 'file-path';
-  location.textContent = `${file.path} • ${file.matchCount} ${file.matchCount === 1 ? 'match' : 'matches'}`;
+  // location.textContent = `${file.path} • ${file.matchCount} ${file.matchCount === 1 ? 'match' : 'matches'}`;
+  location.textContent = `${file.matchCount} ${file.matchCount === 1 ? 'match' : 'matches'} • `;
+  location.append(modified);
 
   const preview = document.createElement('p');
   preview.className = 'file-preview';
@@ -121,13 +123,16 @@ window.electronAPI.getIndexStatus().then((status) => {
   if (currentSearchId === 0) showIdleStatus();
 });
 
-// Window height follows the content; +2 covers the body border.
+// Window height follows the content, including the margin that leaves room for the shadow.
 let resizeFrame = 0;
 new ResizeObserver(() => {
   // Coalesce bursts (results rendering incrementally) into one animation target.
   cancelAnimationFrame(resizeFrame);
   resizeFrame = requestAnimationFrame(() => {
-    window.electronAPI.resizeToContent(document.querySelector('.container').offsetHeight + 2);
+    const container = document.querySelector('.container');
+    const style = getComputedStyle(container);
+    const height = container.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+    window.electronAPI.resizeToContent(height + 2);
   });
 }).observe(document.querySelector('.container'));
 
