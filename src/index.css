@@ -22,7 +22,7 @@ body {
 }
 
 #keyword {
-  padding: 5px 16px;
+  padding: 5px 16px 5px 0;
   -webkit-user-select: text;
   user-select: text;
   flex: 1;
@@ -32,7 +32,7 @@ body {
   height: 30px;
   line-height: 30px;
   font-size: 1rem;
-  border-radius: 30px;
+  border-radius: 0 30px 30px 0;
 }
 
 /* On Windows, drag regions swallow mouse input, so interactive parts must opt out. */
@@ -44,7 +44,16 @@ body {
 
 .area-search {
   display: flex;
+  align-items: center;
   gap: 8px;
+  padding: 0 12px;
+}
+
+.brand-mark {
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex: none;
 }
 
 #fileList {
