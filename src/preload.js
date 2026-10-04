@@ -12,6 +12,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   search: (keyword) => ipcRenderer.invoke('search:start', keyword),
   getIndexStatus: () => ipcRenderer.invoke('index:status'),
   getDiskUsage: () => ipcRenderer.invoke('index:disk-usage'),
+  getIndexPaths: () => ipcRenderer.invoke('index-paths:get'),
+  addIndexPath: () => ipcRenderer.invoke('index-paths:add'),
+  removeIndexPath: (folder) => ipcRenderer.invoke('index-paths:remove', folder),
   openFile: (filePath) => ipcRenderer.invoke('file:open', filePath),
   openFolder: (filePath) => ipcRenderer.invoke('file:show-in-folder', filePath),
   onIndexStatus: (callback) => {

@@ -10,7 +10,9 @@ const STATUS_INTERVAL_MS = 1000;
 const WAIT_MS = 2000;
 
 const index = new FileIndex(workerData.databasePath);
-const roots = workerData.roots;
+let roots = workerData.roots;
+let rescanRequested = false;
+let wakeScan = null;
 let idle = false;
 // Until the first full index exists, index everything right away instead of waiting for idle time.
 let initialIndexing = !index.isInitialIndexDone();
@@ -24,7 +26,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const pause = (ms) => (ms ? sleep(ms) : new Promise((resolve) => setImmediate(resolve)));
 
 function currentStatus() {
-  return { ...index.stats(), scanning, idle, initialIndexing, root: roots[0], error: lastError };
+  return { ...index.stats(), scanning, idle, initialIndexing, error: lastError };
 }
 
 // Returns { directory } or { file } for entries worth visiting, otherwise null.
@@ -103,8 +105,19 @@ async function scan() {
   postStatus(true);
 }
 
+function waitForRescan() {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, RESCAN_INTERVAL_MS);
+    wakeScan = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+  });
+}
+
 async function scanLoop() {
   for (;;) {
+    rescanRequested = false;
     try {
       await scan();
       lastError = null;
@@ -113,7 +126,9 @@ async function scanLoop() {
       lastError = error.message;
       postStatus(true);
     }
-    await sleep(RESCAN_INTERVAL_MS);
+    // Roots changed mid-scan: scan again right away so removed folders get purged.
+    if (!rescanRequested) await waitForRescan();
+    wakeScan = null;
   }
 }
 
@@ -156,6 +171,13 @@ parentPort.on('message', (message) => {
     const wasIdle = idle;
     idle = Boolean(message.idle);
     if (idle !== wasIdle) postStatus(true);
+    return;
+  }
+
+  if (message.type === 'set-roots') {
+    roots = message.roots;
+    rescanRequested = true;
+    wakeScan?.();
     return;
   }
 

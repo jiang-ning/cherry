@@ -123,6 +123,58 @@ body {
   background: #fff;
 }
 
+#indexPath {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin: 4px 0 8px;
+}
+
+#indexPathList {
+  min-height: 60px;
+  max-height: 120px;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.index-path-item {
+  padding: 3px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.index-path-item.selected {
+  background: #ffda6a;
+}
+
+#indexPathAction {
+  display: flex;
+  border-top: 1px solid #ccc;
+}
+
+#indexPathAdd,
+#indexPathRemove {
+  width: 24px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  border-right: 1px solid #ccc;
+}
+
+#welcome {
+  border-top: 1px solid #ccc;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  color: #666;
+  font-size: 12px;
+}
+
+#welcome[hidden] {
+  display: none;
+}
+
 .search-status {
   padding: 6px 0;
   color: #666;

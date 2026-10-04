@@ -55,14 +55,10 @@ let indexStatus = null;
 
 let debounceTimer;
 
-function setStatus(message) {
-  statusLine.textContent = message;
-}
-
 function describeIndex(status) {
   if (!status) return 'Index starting...';
   if (status.error) return `Index error: ${status.error}`;
-  const parts = [`${status.indexed.toLocaleString()} files indexed in ${status.root}`];
+  const parts = [`${status.indexed.toLocaleString()} files indexed`];
   if (status.pending) {
     const note = status.initialIndexing
       ? ' (first-time indexing, newest files first)'
@@ -73,11 +69,12 @@ function describeIndex(status) {
   return parts.join(' • ');
 }
 
-function showIdleStatus() {
-  statusLine = document.createElement('div');
-  statusLine.className = 'search-status';
-  fileList.replaceChildren(statusLine);
-  setStatus(describeIndex(indexStatus));
+// Index progress is only surfaced on first run (or on errors); afterwards it lives in settings.
+function updateWelcome() {
+  const welcome = document.getElementById('welcome');
+  const showProgress = !indexStatus || indexStatus.initialIndexing || indexStatus.error;
+  welcome.textContent = describeIndex(indexStatus);
+  welcome.hidden = !showProgress || Boolean(keywordInput.value.trim()) || !settingsPanel.hidden;
 }
 
 function highlightedPreview(preview, highlights) {
@@ -147,7 +144,7 @@ async function runSearch() {
     if (searchId !== currentSearchId) return;
     indexStatus = status;
 
-    const details = [`${results.length} matched files`, describeIndex(status)];
+    const details = [`${results.length} matched files`];
     if (limitReached) details.push(`showing the ${results.length} most recently modified`);
     showResults(details.join(` • `), results.map(renderFile));
   } catch (error) {
@@ -203,16 +200,43 @@ async function updateDiskUsage() {
   }
 }
 
+const indexPathList = document.getElementById('indexPathList');
+let selectedIndexPath = null;
+
+function renderIndexPaths(paths) {
+  if (!paths.includes(selectedIndexPath)) selectedIndexPath = null;
+  indexPathList.replaceChildren(...paths.map((folder) => {
+    const item = document.createElement('div');
+    item.className = 'index-path-item';
+    item.classList.toggle('selected', folder === selectedIndexPath);
+    item.textContent = folder;
+    item.title = folder;
+    item.addEventListener('click', () => {
+      selectedIndexPath = folder;
+      renderIndexPaths(paths);
+    });
+    return item;
+  }));
+}
+
+document.getElementById('indexPathAdd').addEventListener('click', async () => {
+  renderIndexPaths(await window.electronAPI.addIndexPath());
+});
+document.getElementById('indexPathRemove').addEventListener('click', async () => {
+  if (!selectedIndexPath) return;
+  renderIndexPaths(await window.electronAPI.removeIndexPath(selectedIndexPath));
+});
+window.electronAPI.getIndexPaths().then(renderIndexPaths);
+
 window.electronAPI.onIndexStatus((status) => {
   indexStatus = status;
   updateIndexAmount();
-  // Search summaries stay put; live index numbers are shown only before the first search.
-  if (currentSearchId === 0) showIdleStatus();
+  updateWelcome();
 });
 window.electronAPI.getIndexStatus().then((status) => {
   indexStatus = status ?? indexStatus;
   updateIndexAmount();
-  if (currentSearchId === 0) showIdleStatus();
+  updateWelcome();
 });
 
 // Window height follows the content, including the margin that leaves room for the shadow.
@@ -233,12 +257,14 @@ document.addEventListener('keydown', (event) => {
 });
 keywordInput.addEventListener('input', () => {
   settingsPanel.hidden = true;
+  updateWelcome();
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(runSearch, 150);
 });
 brandMark.addEventListener('click', () => {
   settingsPanel.hidden = !settingsPanel.hidden;
   fileList.hidden = !settingsPanel.hidden;
+  updateWelcome();
   if (!settingsPanel.hidden) {
     updateIndexAmount();
     updateDiskUsage();

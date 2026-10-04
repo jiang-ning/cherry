@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs/promises');
@@ -13,6 +13,7 @@ let tray;
 let isQuitting = false;
 let indexWorker;
 let indexStatus = null;
+let indexPaths = [];
 const pendingSearches = new Map();
 
 const createWindow = () => {
@@ -152,6 +153,45 @@ ipcMain.handle('index:disk-usage', async () => {
   };
 });
 
+ipcMain.handle('index-paths:get', () => indexPaths);
+
+ipcMain.handle('index-paths:add', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title: 'Add Index Path',
+    properties: ['openDirectory', 'multiSelections']
+  });
+  if (canceled) return indexPaths;
+  const added = filePaths.filter((folder) => !indexPaths.includes(folder));
+  return added.length ? applyIndexPaths([...indexPaths, ...added]) : indexPaths;
+});
+
+ipcMain.handle('index-paths:remove', (_event, folder) => {
+  if (!indexPaths.includes(folder)) return indexPaths;
+  return applyIndexPaths(indexPaths.filter((item) => item !== folder));
+});
+
+function getSettingsPath() {
+  return path.join(app.getPath('userData'), 'settings.json');
+}
+
+async function loadIndexPaths() {
+  try {
+    const settings = JSON.parse(await fs.readFile(getSettingsPath(), 'utf8'));
+    if (Array.isArray(settings.indexPaths)) return settings.indexPaths.filter((item) => typeof item === 'string');
+  } catch {
+    // Missing or unreadable settings fall back to the default.
+  }
+  return [app.getPath('documents')];
+}
+
+async function applyIndexPaths(paths) {
+  indexPaths = paths;
+  await fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths }, null, 2));
+  indexWorker?.postMessage({ type: 'set-roots', roots: indexPaths });
+  return indexPaths;
+}
+
 ipcMain.handle('file:open', (_event, filePath) => {
   if (typeof filePath !== 'string') return 'Invalid path';
   return shell.openPath(filePath);
@@ -195,7 +235,7 @@ function startIndexWorker() {
   indexWorker = new Worker(path.join(__dirname, 'index-worker.js'), {
     workerData: {
       databasePath: getDatabasePath(),
-      roots: [app.getPath('documents')]
+      roots: indexPaths
     }
   });
   indexWorker.on('message', handleWorkerMessage);
@@ -228,7 +268,8 @@ if(!app.requestSingleInstanceLock()) {
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
-  app.on('ready', () => {
+  app.on('ready', async () => {
+    indexPaths = await loadIndexPaths();
     startIndexWorker();
     createWindow();
     createTray();
