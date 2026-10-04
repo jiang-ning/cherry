@@ -54,6 +54,7 @@ body {
   width: 34px;
   height: 34px;
   flex: none;
+  cursor: pointer;
 }
 
 .eye {
@@ -62,7 +63,7 @@ body {
 }
 
 .eye.blinking {
-  animation: eye-blink 3s ease-in-out infinite;
+  animation: eye-blink 6s ease-in-out infinite;
 }
 
 @keyframes eye-blink {
@@ -80,7 +81,8 @@ body {
   }
 }
 
-#fileList {
+#fileList,
+#settings {
   max-height: 500px;
   overflow-y: auto;
   border-top: 1px solid #ccc;
@@ -166,4 +168,9 @@ body {
   width: 16px;
   height: 16px;
   cursor: pointer;
+}
+
+.settings {
+  font-size: 12px;
+  line-height: 1.5;
 }

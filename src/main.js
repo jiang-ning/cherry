@@ -198,3 +198,8 @@ keywordInput.addEventListener('input', () => {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(runSearch, 150);
 });
+brandMark.addEventListener('click', () => {
+  const settings = document.getElementById('settings');
+  settings.hidden = !settings.hidden;
+  fileList.hidden = !settings.hidden;
+});
