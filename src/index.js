@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { randomUUID } = require('crypto');
@@ -136,6 +136,16 @@ ipcMain.handle('search:start', (_event, keyword) => {
 });
 
 ipcMain.handle('index:status', () => indexStatus);
+
+ipcMain.handle('file:open', (_event, filePath) => {
+  if (typeof filePath !== 'string') return 'Invalid path';
+  return shell.openPath(filePath);
+});
+
+ipcMain.handle('file:show-in-folder', (_event, filePath) => {
+  if (typeof filePath !== 'string') return;
+  shell.showItemInFolder(filePath);
+});
 
 function handleWorkerMessage(message) {
   if (message.type === 'status') {
