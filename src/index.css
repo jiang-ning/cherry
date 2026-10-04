@@ -150,3 +150,20 @@ body {
   background: #ffe28a;
   border-radius: 2px;
 }
+
+.open-file {
+  display: inline-block;
+  background: url('./images/file.svg') no-repeat center center;
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  cursor: pointer;
+}
+
+.open-folder {
+  display: inline-block;
+  background: url('./images/folder.svg') no-repeat center center;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}

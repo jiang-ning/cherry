@@ -107,7 +107,15 @@ function renderFile(file) {
   modified.className = 'file-modified';
   modified.dateTime = new Date(file.modified).toISOString();
   modified.textContent = dateFormat.format(file.modified);
-  header.append(name);
+  const actions = document.createElement('div');
+  const btnOpenFile = document.createElement('span');
+  btnOpenFile.className = 'open-file';
+  btnOpenFile.addEventListener('click', () => window.electronAPI.openFile(file.path));
+  const btnOpenFolder = document.createElement('span');
+  btnOpenFolder.className = 'open-folder';
+  btnOpenFolder.addEventListener('click', () => window.electronAPI.openFolder(file.path));
+  actions.append(btnOpenFile, btnOpenFolder);
+  header.append(name, actions);
 
   const location = document.createElement('div');
   location.className = 'file-path';
