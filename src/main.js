@@ -1,5 +1,38 @@
 const keywordInput = document.getElementById('keyword');
 const fileList = document.getElementById('fileList');
+const brandMark = document.querySelector('.brand-mark');
+const pupils = [...(brandMark?.querySelectorAll('.pupil') ?? [])];
+const eyeCenters = [
+  { x: 32, y: 46 },
+  { x: 58, y: 46}
+];
+
+function trackEyes(event) {
+  if (!brandMark) return;
+
+  const rect = brandMark.getBoundingClientRect();
+  const viewBox = brandMark.viewBox.baseVal;
+  if (!rect.width || !rect.height) return;
+
+  const mouseX = (event.clientX - rect.left) * viewBox.width / rect.width + viewBox.x;
+  const mouseY = (event.clientY - rect.top) * viewBox.height / rect.height + viewBox.y;
+  const maxDistance = 2.5;
+
+  pupils.forEach((pupil, index) => {
+    const dx = mouseX - eyeCenters[index].x;
+    const dy = mouseY - eyeCenters[index].y;
+    const distance = Math.hypot(dx, dy);
+    const scale = distance > maxDistance ? maxDistance / distance : 1;
+    pupil.setAttribute('transform', `translate(${dx * scale} ${dy * scale})`);
+  });
+}
+
+function resetEyes() {
+  pupils.forEach((pupil) => pupil.removeAttribute('transform'));
+}
+
+document.addEventListener('mousemove', trackEyes);
+document.addEventListener('mouseleave', resetEyes);
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 let currentSearchId = 0;
