@@ -94,6 +94,35 @@ body {
   display: none;
 }
 
+#diskUsageRatioChart {
+  display: flex;
+  width: 50%;
+  height: 14px;
+  margin: 6px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.disk-segment {
+  flex-basis: 0;
+}
+
+.disk-used {
+  background: #ddd;
+}
+
+/* The index is tiny next to a whole disk; keep it visible. */
+.disk-index {
+  background: #ffda6a;
+  min-width: 3px;
+}
+
+.disk-free {
+  background: #fff;
+}
+
 .search-status {
   padding: 6px 0;
   color: #666;

@@ -168,13 +168,50 @@ function showResults(summary, items) {
   }
 }
 
+const settingsPanel = document.getElementById('settings');
+const indexAmount = document.getElementById('indexAmount');
+const diskSpaceUsed = document.getElementById('diskSpaceUsed');
+const diskUsageRatioChart = document.getElementById('diskUsageRatioChart');
+const MB = 1024 * 1024;
+const GB = 1024 * MB;
+
+function updateIndexAmount() {
+  indexAmount.textContent = (indexStatus?.indexed ?? 0).toLocaleString();
+}
+
+function chartSegment(className, bytes, totalBytes, label) {
+  const segment = document.createElement('div');
+  segment.className = `disk-segment ${className}`;
+  segment.style.flexGrow = bytes / totalBytes;
+  segment.title = label;
+  return segment;
+}
+
+async function updateDiskUsage() {
+  try {
+    const { indexBytes, totalBytes, freeBytes } = await window.electronAPI.getDiskUsage();
+    diskSpaceUsed.textContent = (indexBytes / MB).toFixed(1);
+    const otherBytes = Math.max(0, totalBytes - freeBytes - indexBytes);
+    diskUsageRatioChart.replaceChildren(
+      chartSegment('disk-used', otherBytes, totalBytes, `Disk used: ${(otherBytes / GB).toFixed(1)} GB`),
+      chartSegment('disk-index', indexBytes, totalBytes, `Index: ${(indexBytes / MB).toFixed(1)} MB`),
+      chartSegment('disk-free', freeBytes, totalBytes, `Free: ${(freeBytes / GB).toFixed(1)} GB`)
+    );
+  } catch (error) {
+    diskUsageRatioChart.replaceChildren();
+    diskUsageRatioChart.title = `Disk usage unavailable: ${error.message}`;
+  }
+}
+
 window.electronAPI.onIndexStatus((status) => {
   indexStatus = status;
+  updateIndexAmount();
   // Search summaries stay put; live index numbers are shown only before the first search.
   if (currentSearchId === 0) showIdleStatus();
 });
 window.electronAPI.getIndexStatus().then((status) => {
   indexStatus = status ?? indexStatus;
+  updateIndexAmount();
   if (currentSearchId === 0) showIdleStatus();
 });
 
@@ -195,11 +232,15 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') window.electronAPI.hideToTray();
 });
 keywordInput.addEventListener('input', () => {
+  settingsPanel.hidden = true;
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(runSearch, 150);
 });
 brandMark.addEventListener('click', () => {
-  const settings = document.getElementById('settings');
-  settings.hidden = !settings.hidden;
-  fileList.hidden = !settings.hidden;
+  settingsPanel.hidden = !settingsPanel.hidden;
+  fileList.hidden = !settingsPanel.hidden;
+  if (!settingsPanel.hidden) {
+    updateIndexAmount();
+    updateDiskUsage();
+  }
 });

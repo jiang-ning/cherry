@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const fs = require('fs/promises');
 const { randomUUID } = require('crypto');
 const { Worker } = require('worker_threads');
 
@@ -137,6 +138,20 @@ ipcMain.handle('search:start', (_event, keyword) => {
 
 ipcMain.handle('index:status', () => indexStatus);
 
+ipcMain.handle('index:disk-usage', async () => {
+  const databasePath = getDatabasePath();
+  // SQLite keeps recent writes in -wal/-shm side files, so they count toward the index size.
+  const sizes = await Promise.all(['', '-wal', '-shm'].map((suffix) =>
+    fs.stat(databasePath + suffix).then((stat) => stat.size, () => 0)
+  ));
+  const disk = await fs.statfs(path.dirname(databasePath));
+  return {
+    indexBytes: sizes.reduce((sum, size) => sum + size, 0),
+    totalBytes: disk.blocks * disk.bsize,
+    freeBytes: disk.bavail * disk.bsize
+  };
+});
+
 ipcMain.handle('file:open', (_event, filePath) => {
   if (typeof filePath !== 'string') return 'Invalid path';
   return shell.openPath(filePath);
@@ -172,10 +187,14 @@ function failPendingSearches(reason) {
   pendingSearches.clear();
 }
 
+function getDatabasePath() {
+  return path.join(app.getPath('userData'), 'file-index.sqlite');
+}
+
 function startIndexWorker() {
   indexWorker = new Worker(path.join(__dirname, 'index-worker.js'), {
     workerData: {
-      databasePath: path.join(app.getPath('userData'), 'file-index.sqlite'),
+      databasePath: getDatabasePath(),
       roots: [app.getPath('documents')]
     }
   });
