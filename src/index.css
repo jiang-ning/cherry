@@ -56,6 +56,30 @@ body {
   flex: none;
 }
 
+.eye {
+  transform: fill-box;
+  transform-origin: center;
+}
+
+.eye.blinking {
+  animation: eye-blink 3s ease-in-out infinite;
+}
+
+@keyframes eye-blink {
+  0%, 45%, 55%, 100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eye.blinking {
+    animation: none;
+  }
+}
+
 #fileList {
   max-height: 500px;
   overflow-y: auto;

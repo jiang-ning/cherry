@@ -2,14 +2,26 @@ const keywordInput = document.getElementById('keyword');
 const fileList = document.getElementById('fileList');
 const brandMark = document.querySelector('.brand-mark');
 const pupils = [...(brandMark?.querySelectorAll('.pupil') ?? [])];
+const eyes = [...(brandMark?.querySelectorAll('.eye') ?? [])];
 const eyeCenters = [
   { x: 32, y: 46 },
   { x: 58, y: 46}
 ];
+const blinkDelay = 10000;
+let blinkTimer;
+
+function startBlinkTimer() {
+  clearTimeout(blinkTimer);
+  eyes.forEach((eye) => eye.classList.remove('blinking'));
+  blinkTimer = setTimeout(() => {
+    eyes.forEach((eye) => eye.classList.add('blinking'));
+  }, blinkDelay);
+}
 
 function trackEyes(event) {
   if (!brandMark) return;
 
+  startBlinkTimer();
   const rect = brandMark.getBoundingClientRect();
   const viewBox = brandMark.viewBox.baseVal;
   if (!rect.width || !rect.height) return;
@@ -29,10 +41,12 @@ function trackEyes(event) {
 
 function resetEyes() {
   pupils.forEach((pupil) => pupil.removeAttribute('transform'));
+  startBlinkTimer();
 }
 
 document.addEventListener('mousemove', trackEyes);
 document.addEventListener('mouseleave', resetEyes);
+startBlinkTimer();
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 let currentSearchId = 0;
