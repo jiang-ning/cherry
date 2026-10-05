@@ -43,12 +43,24 @@
             <span id="indexAmount">0</span><span> files indexed.</span>
             <span id="diskSpaceUsed">0</span><span> MB disk space used.</span>
           </div>
-          <label for="indexPath">Index Path:</label>
-          <div id="indexPath">
-            <div id="indexPathList"></div>
-            <div id="indexPathAction">
-              <span id="indexPathAdd">+</span>
-              <span id="indexPathRemove">-</span>
+          <div class="indexSelections">
+            <label for="indexPath">Index Path:</label>
+            <div id="indexPath">
+              <div id="indexPathList"></div>
+              <div id="indexPathAction">
+                <span id="indexPathAdd">+</span>
+                <span id="indexPathRemove">-</span>
+              </div>
+            </div>
+          </div>
+          <div class="indexSelections">
+            <label for="indexFileExtension">Index File Extension:</label>
+            <div id="indexFileExtension">
+              <div id="indexFileExtensionList"></div>
+              <div id="indexFileExtensionAction">
+                <span id="indexFileExtensionAdd">+</span>
+                <span id="indexFileExtensionRemove">-</span>
+              </div>
             </div>
           </div>
           <button id="btnUpdateIndex">Update Index</button>
