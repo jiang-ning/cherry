@@ -19,6 +19,8 @@ let idle = false;
 let initialIndexing = !index.isInitialIndexDone();
 let scanCompleted = false;
 let scanning = false;
+// Set when settings change: index everything now instead of waiting for idle.
+let catchUp = false;
 let lastError = null;
 let lastStatusAt = 0;
 
@@ -71,8 +73,9 @@ async function scan() {
   scanning = true;
   postStatus(true);
   const scanId = index.beginScan();
-  const queue = [...roots];
-  let rootsReadable = true;
+  const scanRoots = [...roots];
+  const queue = [...scanRoots];
+  const unreadableRoots = [];
 
   while (queue.length) {
     const directory = queue.pop();
@@ -80,7 +83,7 @@ async function scan() {
     try {
       entries = await fs.readdir(directory, { withFileTypes: true });
     } catch {
-      if (roots.includes(directory)) rootsReadable = false;
+      if (scanRoots.includes(directory)) unreadableRoots.push(directory);
       continue;
     }
 
@@ -94,14 +97,13 @@ async function scan() {
 
     index.recordFiles(files, scanId);
     postStatus();
-    await pause(idle || initialIndexing ? 0 : 5);
+    await pause(idle || initialIndexing || catchUp ? 0 : 5);
   }
 
-  // An unreadable root would otherwise look like every file was deleted.
-  if (rootsReadable) {
-    index.finishScan(scanId);
-    scanCompleted = true;
-  }
+  // An unreadable root (e.g. unplugged drive) would otherwise look like all its files were deleted.
+  for (const root of unreadableRoots) index.keepFilesUnder(root, scanId);
+  index.finishScan(scanId);
+  scanCompleted = true;
   scanning = false;
   postStatus(true);
 }
@@ -142,7 +144,8 @@ async function indexLoop() {
         initialIndexing = false;
         postStatus(true);
       }
-      const eager = idle || initialIndexing;
+      if (!file && catchUp && !scanning) catchUp = false;
+      const eager = idle || initialIndexing || catchUp;
       const isRecent = file && file.modifiedMs >= Date.now() - RECENT_WINDOW_MS;
       // Pending files come newest first, so an old one at the top means only old files remain.
       if (!file || (!isRecent && !eager)) {
@@ -167,6 +170,12 @@ async function indexLoop() {
   }
 }
 
+function requestCatchUp() {
+  catchUp = true;
+  rescanRequested = true;
+  wakeScan?.();
+}
+
 parentPort.on('message', (message) => {
   if (message.type === 'idle') {
     const wasIdle = idle;
@@ -177,15 +186,13 @@ parentPort.on('message', (message) => {
 
   if (message.type === 'set-roots') {
     roots = message.roots;
-    rescanRequested = true;
-    wakeScan?.();
+    requestCatchUp();
     return;
   }
 
   if (message.type === 'set-extensions') {
     extensions = new Set(message.extensions);
-    rescanRequested = true;
-    wakeScan?.();
+    requestCatchUp();
     return;
   }
 

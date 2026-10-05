@@ -81,6 +81,9 @@ class FileIndex {
       "INSERT OR REPLACE INTO meta(key, value) VALUES ('initial_index_done', '1')"
     );
     this.removeUnseenStatement = this.db.prepare('DELETE FROM files WHERE seen_scan < ?');
+    this.keepFilesUnderStatement = this.db.prepare(
+      'UPDATE files SET seen_scan = @scanId WHERE substr(path, 1, length(@prefix)) = @prefix'
+    );
     this.nextPendingStatement = this.db.prepare(`
       SELECT id, path, modified_ms AS modifiedMs, size
       FROM files WHERE state = ${STATE_PENDING}
@@ -120,6 +123,11 @@ class FileIndex {
 
   finishScan(scanId) {
     this.removeUnseenStatement.run(scanId);
+  }
+
+  keepFilesUnder(root, scanId) {
+    const prefix = root.endsWith(path.sep) ? root : root + path.sep;
+    this.keepFilesUnderStatement.run({ prefix, scanId });
   }
 
   isInitialIndexDone() {
