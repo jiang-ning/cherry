@@ -33,17 +33,19 @@
     </div>
     <div id="fileList" hidden></div>
     <div id="settings" hidden>
-      <div class="setting-item">
-        <div id="brand">WithinFile</div>
+      <div class="setting-header">
+        <div id="brand">Settings</div>
         <button id="btnWelcomeScreen">Welcome Screen</button>
       </div>
       <div class="setting-item">
         <div class="setting-name">File Index</div>
         <div class="setting-contents">
-          <div id="diskUsageRatioChart"></div>
-          <div>
-            <span id="indexAmount">0</span><span> files indexed.</span>
-            <span id="diskSpaceUsed">0</span><span> MB disk space used.</span>
+          <div class="diskUsageInfo">
+            <div id="diskUsageRatioChart"></div>
+            <div>
+              <span id="indexAmount">0</span><span> files indexed.</span>
+              <span id="diskSpaceUsed">0</span><span> MB disk space used.</span>
+            </div>
           </div>
           <div class="indexSelectionRow">
             <div class="indexSelections">
@@ -69,7 +71,7 @@
             </div>
 
           </div>
-          
+
           <button id="btnUpdateIndex">Update Index</button>
           <button id="btnClearIndex">Clear Index</button>
         </div>
