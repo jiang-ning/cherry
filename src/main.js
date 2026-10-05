@@ -69,11 +69,15 @@ function describeIndex(status) {
   return parts.join(' • ');
 }
 
-// Index progress is only surfaced on first run (or on errors); afterwards it lives in settings.
+// Set when the user opens the welcome screen from settings; index status updates must not hide it.
+let welcomePinned = false;
+const WELCOME_DISMISSED_KEY = 'welcomeDismissed';
+
+// Welcome appears on first run until the user click OK, afterwards index progress lives in settings.
 function updateWelcome() {
   const welcome = document.getElementById('welcome');
-  const showProgress = !indexStatus || indexStatus.initialIndexing || indexStatus.error;
-  welcome.textContent = describeIndex(indexStatus);
+  const showProgress = welcomePinned || !localStorage.getItem(WELCOME_DISMISSED_KEY);
+  document.getElementById('welcome-indexSummary').textContent = describeIndex(indexStatus);
   welcome.hidden = !showProgress || Boolean(keywordInput.value.trim()) || !settingsPanel.hidden;
 }
 
@@ -223,8 +227,16 @@ document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
   const welcome = document.getElementById('welcome');
   settingsPanel.hidden = true;
   fileList.hidden = true;
+  welcomePinned = true;
+  document.getElementById('welcome-indexSummary').textContent = describeIndex(indexStatus);
   welcome.hidden = false;
-})
+});
+document.getElementById('welcome-ok').addEventListener('click', () => {
+  localStorage.setItem(WELCOME_DISMISSED_KEY, '1');
+  welcomePinned = false;
+  fileList.hidden = false;
+  updateWelcome();
+});
 document.getElementById('indexPathAdd').addEventListener('click', async () => {
   renderIndexPaths(await window.electronAPI.addIndexPath());
 });
@@ -263,11 +275,13 @@ document.addEventListener('keydown', (event) => {
 });
 keywordInput.addEventListener('input', () => {
   settingsPanel.hidden = true;
+  welcomePinned = false;
   updateWelcome();
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(runSearch, 150);
 });
 brandMark.addEventListener('click', () => {
+  welcomePinned = false;
   settingsPanel.hidden = !settingsPanel.hidden;
   fileList.hidden = !settingsPanel.hidden;
   updateWelcome();
