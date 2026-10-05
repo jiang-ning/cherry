@@ -78,7 +78,7 @@ function updateWelcome() {
   const welcome = document.getElementById('welcome');
   const showProgress = welcomePinned || !localStorage.getItem(WELCOME_DISMISSED_KEY);
   document.getElementById('welcome-indexSummary').textContent = describeIndex(indexStatus);
-  welcome.hidden = !showProgress || Boolean(keywordInput.value.trim()) || !settingsPanel.hidden;
+  welcome.hidden = !showProgress || (!welcomePinned && Boolean(keywordInput.value.trim())) || !settingsPanel.hidden;
 }
 
 function highlightedPreview(preview, highlights) {
@@ -158,10 +158,16 @@ async function runSearch() {
 
 // Swap content in one step; the previous list stays visible until then, so the window never collapses between searches.
 function showResults(summary, items) {
-  statusLine = document.createElement('div');
-  statusLine.className = 'search-status';
-  statusLine.textContent = summary;
-  fileList.replaceChildren(statusLine, ...items);
+  // Match counts are not useful to users, so no status line is shown.
+  // statusLine = document.createElement('div');
+  // statusLine.className = 'search-status';
+  // statusLine.textContent = summary;
+  // fileList.replaceChildren(statusLine, ...items);
+  fileList.replaceChildren(...items);
+  if (!items.length) {
+    fileList.hidden = true;
+    return;
+  }
   if (fileList.hidden) {
     fileList.classList.add('reveal');
     fileList.hidden = false;
@@ -234,7 +240,7 @@ document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
 document.getElementById('welcome-ok').addEventListener('click', () => {
   localStorage.setItem(WELCOME_DISMISSED_KEY, '1');
   welcomePinned = false;
-  fileList.hidden = false;
+  fileList.hidden = fileList.childElementCount === 0;
   updateWelcome();
 });
 document.getElementById('indexPathAdd').addEventListener('click', async () => {
