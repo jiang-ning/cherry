@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const { randomUUID } = require('crypto');
 const { Worker } = require('worker_threads');
+const { DEFAULT_EXTENSIONS } = require('./search');
 
 const IDLE_THRESHOLD_SECONDS = 60;
 const IMAGES_DIR = path.join(__dirname, 'images');
@@ -14,6 +15,7 @@ let isQuitting = false;
 let indexWorker;
 let indexStatus = null;
 let indexPaths = [];
+let indexExtensions = [];
 const pendingSearches = new Map();
 
 const createWindow = () => {
@@ -171,25 +173,61 @@ ipcMain.handle('index-paths:remove', (_event, folder) => {
   return applyIndexPaths(indexPaths.filter((item) => item !== folder));
 });
 
+ipcMain.handle('index-extensions:get', () => indexExtensions);
+
+ipcMain.handle('index-extensions:add', (_event, input) => {
+  const extension = normalizeExtension(input);
+  if (!extension) throw new Error('Enter an extension such as .txt');
+  if (indexExtensions.includes(extension)) return indexExtensions;
+  return applyIndexExtensions([...indexExtensions, extension]);
+});
+
+ipcMain.handle('index-extensions:remove', (_event, extension) => {
+  if (!indexExtensions.includes(extension)) return indexExtensions;
+  return applyIndexExtensions(indexExtensions.filter((item) => item !== extension));
+});
+
+function normalizeExtension(input) {
+  if (typeof input !== 'string') return null;
+  const extension = '.' + input.trim().toLowerCase().replace(/^\*?\./, '');
+  return /^\.[a-z0-9_+-]{1,16}$/.test(extension) ? extension : null;
+}
+
 function getSettingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
 }
 
-async function loadIndexPaths() {
+async function loadSettings() {
+  let settings = {};
   try {
-    const settings = JSON.parse(await fs.readFile(getSettingsPath(), 'utf8'));
-    if (Array.isArray(settings.indexPaths)) return settings.indexPaths.filter((item) => typeof item === 'string');
+    settings = JSON.parse(await fs.readFile(getSettingsPath(), 'utf8'));
   } catch {
-    // Missing or unreadable settings fall back to the default.
+    // Missing or unreadable settings fall back to the defaults.
   }
-  return [app.getPath('documents')];
+  indexPaths = Array.isArray(settings.indexPaths)
+    ? settings.indexPaths.filter((item) => typeof item === 'string')
+    : [app.getPath('documents')];
+  indexExtensions = Array.isArray(settings.indexExtensions)
+    ? settings.indexExtensions.map(normalizeExtension).filter(Boolean)
+    : [...DEFAULT_EXTENSIONS];
+}
+
+function saveSettings() {
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
   indexPaths = paths;
-  await fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths }, null, 2));
+  await saveSettings();
   indexWorker?.postMessage({ type: 'set-roots', roots: indexPaths });
   return indexPaths;
+}
+
+async function applyIndexExtensions(extensions) {
+  indexExtensions = extensions;
+  await saveSettings();
+  indexWorker?.postMessage({ type: 'set-extensions', extensions: indexExtensions });
+  return indexExtensions;
 }
 
 ipcMain.handle('file:open', (_event, filePath) => {
@@ -235,7 +273,8 @@ function startIndexWorker() {
   indexWorker = new Worker(path.join(__dirname, 'index-worker.js'), {
     workerData: {
       databasePath: getDatabasePath(),
-      roots: indexPaths
+      roots: indexPaths,
+      extensions: indexExtensions
     }
   });
   indexWorker.on('message', handleWorkerMessage);
@@ -269,7 +308,7 @@ if(!app.requestSingleInstanceLock()) {
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.on('ready', async () => {
-    indexPaths = await loadIndexPaths();
+    await loadSettings();
     startIndexWorker();
     createWindow();
     createTray();

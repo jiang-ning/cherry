@@ -11,6 +11,7 @@ const WAIT_MS = 2000;
 
 const index = new FileIndex(workerData.databasePath);
 let roots = workerData.roots;
+let extensions = new Set(workerData.extensions);
 let rescanRequested = false;
 let wakeScan = null;
 let idle = false;
@@ -49,7 +50,7 @@ async function describeEntry(directory, entry) {
   }
 
   if (isDirectory) return isIgnoredDirectory(entry.name) ? null : { directory: entryPath };
-  if (!isFile || !isSupportedFile(entry.name)) return null;
+  if (!isFile || !isSupportedFile(entry.name, extensions)) return null;
   try {
     stats ??= await fs.stat(entryPath);
     return { file: { path: entryPath, modifiedMs: stats.mtimeMs, size: stats.size } };
@@ -176,6 +177,13 @@ parentPort.on('message', (message) => {
 
   if (message.type === 'set-roots') {
     roots = message.roots;
+    rescanRequested = true;
+    wakeScan?.();
+    return;
+  }
+
+  if (message.type === 'set-extensions') {
+    extensions = new Set(message.extensions);
     rescanRequested = true;
     wakeScan?.();
     return;

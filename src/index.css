@@ -141,17 +141,25 @@ button.primary {
   background: #fff;
 }
 
-#indexPath {
+.indexSelectionRow {
+  display: flex;
+  gap: 12px;
+}
+
+.indexSelectionRow > .indexSelections {
+  flex: 1;
+  min-width: 0;
+}
+
+.index-box {
   border: 1px solid #ccc;
   border-radius: 4px;
   margin: 4px 0 8px;
 }
 
-#indexPathList {
-  min-height: 60px;
-  max-height: 120px;
+.index-list {
+  height: 120px;
   overflow-y: auto;
-  background: #fff;
 }
 
 .index-path-item {
@@ -167,18 +175,34 @@ button.primary {
   background: #ffda6a;
 }
 
-#indexPathAction {
+.index-extension-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 8px;
+  font-size: 12px;
+  border: none;
+  outline: 1px solid #ffda6a;
+}
+
+.index-extension-input.invalid {
+  outline-color: #d33;
+}
+
+.index-actions {
   display: flex;
   border-top: 1px solid #ccc;
 }
 
-#indexPathAdd,
-#indexPathRemove {
+.index-actions > span {
   width: 24px;
+  height: 24px;
   text-align: center;
   cursor: pointer;
   user-select: none;
   border-right: 1px solid #ccc;
+  line-height: 22px;
+  font-size: 14px;
 }
 
 #welcome {

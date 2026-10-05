@@ -18,12 +18,12 @@ const IGNORED_DIRECTORIES = new Set([
 ]);
 
 let officeParser;
+const DEFAULT_EXTENSIONS = [...TEXT_EXTENSIONS, ...DOCUMENT_EXTENSIONS];
 
-function isSupportedFile(name) {
+function isSupportedFile(name, extensions) {
   // Office writes "~$name.docx" lock files while a docment is open.
   if (name.startsWith('~$')) return false;
-  const extension = path.extname(name).toLowerCase();
-  return TEXT_EXTENSIONS.has(extension) || DOCUMENT_EXTENSIONS.has(extension);
+  return extensions.has(path.extname(name).toLowerCase());
 }
 
 function isIgnoredDirectory(name) {
@@ -53,13 +53,12 @@ async function extractText(filePath, size) {
   if (DOCUMENT_EXTENSIONS.has(extension)) {
     if (size > MAX_DOCUMENT_BYTES) return null;
     raw = await readDocumentText(filePath);
-  } else if (TEXT_EXTENSIONS.has(extension)) {
+  } else {
+    // User-added extensions are read as plain text; binary files are rejected below.
     if (size > MAX_FILE_BYTES) return null;
     const buffer = await fs.readFile(filePath);
     if (buffer.includes(0)) return null;
     raw = buffer.toString('utf8');
-  } else {
-    return null;
   }
 
   const text = raw.replace(/^\uFEFF/, '').replace(/\s+/g, ' ').trim().slice(0, MAX_INDEXED_CHARS);
@@ -71,4 +70,4 @@ function findHighlights(text, query) {
   return [...text.matchAll(pattern)].map((match) => ({ start: match.index, length: match[0].length }));
 }
 
-module.exports = { extractText, findHighlights, isSupportedFile, isIgnoredDirectory };
+module.exports = { DEFAULT_EXTENSIONS, extractText, findHighlights, isSupportedFile, isIgnoredDirectory };

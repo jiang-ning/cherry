@@ -252,6 +252,66 @@ document.getElementById('indexPathRemove').addEventListener('click', async () =>
 });
 window.electronAPI.getIndexPaths().then(renderIndexPaths);
 
+const indexFileExtensionList = document.getElementById('indexFileExtensionList');
+let indexExtensions = [];
+let selectedIndexExtension = null;
+
+function renderIndexExtensions(extensions) {
+  indexExtensions = extensions;
+  if (!extensions.includes(selectedIndexExtension)) selectedIndexExtension = null;
+  indexFileExtensionList.replaceChildren(...extensions.map((extension) => {
+    const item = document.createElement('div');
+    item.className = 'index-path-item';
+    item.classList.toggle('selected', extension === selectedIndexExtension);
+    item.textContent = extension;
+    item.addEventListener('click', () => {
+      selectedIndexExtension = extension;
+      renderIndexExtensions(indexExtensions);
+    });
+    return item;
+  }));
+}
+
+document.getElementById('indexFileExtensionAdd').addEventListener('click', () => {
+  const existing = indexFileExtensionList.querySelector('.index-extension-input');
+  if (existing) return existing.focus();
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'index-extension-input';
+  input.placeholder = '.ext';
+  input.maxLength = 17;
+  let committing = false;
+
+  input.addEventListener('keydown', async (event) => {
+    // Keep Escape from hiding the window while editing.
+    event.stopPropagation();
+    if (event.key === 'Escape') return input.remove();
+    if (event.key !== 'Enter' || !input.value.trim()) return;
+    committing = true;
+    try {
+      renderIndexExtensions(await window.electronAPI.addIndexExtension(input.value));
+    } catch {
+      input.classList.add('invalid');
+      input.title = 'Use letters, digits, _ + or -, e.g. .txt';
+      committing = false;
+    }
+  });
+  input.addEventListener('input', () => input.classList.remove('invalid'));
+  input.addEventListener('blur', () => {
+    if (!committing) input.remove();
+  });
+
+  indexFileExtensionList.append(input);
+  input.scrollIntoView({ block: 'nearest' });
+  input.focus();
+});
+document.getElementById('indexFileExtensionRemove').addEventListener('click', async () => {
+  if (!selectedIndexExtension) return;
+  renderIndexExtensions(await window.electronAPI.removeIndexExtension(selectedIndexExtension));
+});
+window.electronAPI.getIndexExtensions().then(renderIndexExtensions);
+
 window.electronAPI.onIndexStatus((status) => {
   indexStatus = status;
   updateIndexAmount();
@@ -289,7 +349,7 @@ keywordInput.addEventListener('input', () => {
 brandMark.addEventListener('click', () => {
   welcomePinned = false;
   settingsPanel.hidden = !settingsPanel.hidden;
-  fileList.hidden = !settingsPanel.hidden;
+  fileList.hidden = !settingsPanel.hidden || fileList.childElementCount === 0;
   updateWelcome();
   if (!settingsPanel.hidden) {
     updateIndexAmount();
