@@ -219,6 +219,12 @@ function renderIndexPaths(paths) {
   }));
 }
 
+document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
+  const welcome = document.getElementById('welcome');
+  settingsPanel.hidden = true;
+  fileList.hidden = true;
+  welcome.hidden = false;
+})
 document.getElementById('indexPathAdd').addEventListener('click', async () => {
   renderIndexPaths(await window.electronAPI.addIndexPath());
 });
