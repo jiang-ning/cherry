@@ -241,6 +241,13 @@ button.primary {
   gap: 24px;
 }
 
+.welcome-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
 .shortcutKeys {
   display: flex;
   align-items: center;
@@ -257,15 +264,33 @@ button.primary {
   border-radius: 10px;
   justify-content: center;
   align-items: center;
+  white-space: nowrap;
+}
+
+.shortcutKeys > span.wide {
+  width: 90px;
 }
 
 .shortcutKeys .spaceKey {
-  width: 120px;
+  width: 190px;
   align-items: flex-end;
 }
 
 .shortcutKeys .spaceKey svg {
   fill: #999;
+}
+
+.shortcutKeys .shiftKey {
+  width: 90px;
+  align-items: flex-start;
+  justify-content: left;
+  text-align: center;
+  line-height: 40px;
+}
+
+.shortcutKeys .shiftKey svg {
+  fill: #999;
+  margin: 4px;
 }
 
 .search-status {
@@ -361,8 +386,31 @@ button.primary {
   margin-bottom: 10px;
 }
 
+.setting-item-container {
+  display: flex;
+  align-items: flex-start;
+  overflow: hidden;
+}
+
 .setting-item {
+  flex: 0 0 100%;
+  min-width: 0;
   margin-bottom: 10px;
+  visibility: hidden;
+  /* Delay hiding so the outgoing pane stays visible while it slides away. */
+  transition: transform 0.3s ease, visibility 0s 0.3s;
+}
+
+.setting-item.active {
+  visibility: visible;
+  transition: transform 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .setting-item,
+  .setting-item.active {
+    transition: none;
+  }
 }
 
 .setting-name {
@@ -375,4 +423,42 @@ button.primary {
   align-items: center;
   gap: 12px;
   margin-bottom: 6px;
+}
+
+#btnWelcomeScreen {
+  margin-left: 10px;
+}
+
+.setting-menu-item {
+  color: #666;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.setting-menu-item:hover {
+  color: #000;
+}
+
+.setting-menu-item.active {
+  color: #000;
+}
+
+.setting-item .shortcutKeys {
+  justify-content: center;
+  height: 100px;
+}
+
+#hotkeys-message {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.setting-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
 }

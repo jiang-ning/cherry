@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getIndexExtensions: () => ipcRenderer.invoke('index-extensions:get'),
   addIndexExtension: (extension) => ipcRenderer.invoke('index-extensions:add', extension),
   removeIndexExtension: (extension) => ipcRenderer.invoke('index-extensions:remove', extension),
+  getHotkey: () => ipcRenderer.invoke('hotkey:get'),
+  setHotkey: (accelerator) => ipcRenderer.invoke('hotkey:set', accelerator),
   openFile: (filePath) => ipcRenderer.invoke('file:open', filePath),
   openFolder: (filePath) => ipcRenderer.invoke('file:show-in-folder', filePath),
   onIndexStatus: (callback) => {

@@ -79,6 +79,7 @@ function updateWelcome() {
   const showProgress = welcomePinned || !localStorage.getItem(WELCOME_DISMISSED_KEY);
   document.getElementById('welcome-indexSummary').textContent = describeIndex(indexStatus);
   welcome.hidden = !showProgress || (!welcomePinned && Boolean(keywordInput.value.trim())) || !settingsPanel.hidden;
+  if (!welcome.hidden) updateWideKeys(welcomeHotkey);
 }
 
 function highlightedPreview(preview, highlights) {
@@ -229,6 +230,21 @@ function renderIndexPaths(paths) {
   }));
 }
 
+const settingMenuItems = settingsPanel.querySelectorAll('.setting-menu-item');
+const settingItems = settingsPanel.querySelectorAll('.setting-item');
+
+function showSettingItem(index) {
+  settingMenuItems.forEach((menuItem, i) => menuItem.classList.toggle('active', i === index));
+  settingItems.forEach((item, i) => {
+    item.classList.toggle('active', i === index);
+    item.style.transform = `translateX(${-index * 100}%)`;
+  });
+}
+
+settingMenuItems.forEach((menuItem, index) => {
+  menuItem.addEventListener('click', () => showSettingItem(index));
+});
+
 document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
   const welcome = document.getElementById('welcome');
   settingsPanel.hidden = true;
@@ -236,12 +252,21 @@ document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
   welcomePinned = true;
   document.getElementById('welcome-indexSummary').textContent = describeIndex(indexStatus);
   welcome.hidden = false;
+  updateWideKeys(welcomeHotkey);
 });
 document.getElementById('welcome-ok').addEventListener('click', () => {
   localStorage.setItem(WELCOME_DISMISSED_KEY, '1');
   welcomePinned = false;
   fileList.hidden = fileList.childElementCount === 0;
   updateWelcome();
+});
+document.getElementById('btnSettings').addEventListener('click', () => {
+  welcomePinned = false;
+  settingsPanel.hidden = false;
+  fileList.hidden = true;
+  updateWelcome();
+  updateIndexAmount();
+  updateDiskUsage();
 });
 document.getElementById('indexPathAdd').addEventListener('click', async () => {
   renderIndexPaths(await window.electronAPI.addIndexPath());
@@ -335,6 +360,136 @@ new ResizeObserver(() => {
     window.electronAPI.resizeToContent(height + 2);
   });
 }).observe(document.querySelector('.container'));
+
+const hotkeys = document.getElementById('hotkeys');
+const hotkeysMessage = document.getElementById('hotkeys-message');
+const spaceKeyTemplate = hotkeys.querySelector('.spaceKey').cloneNode(true);
+const shiftKeyTemplate = hotkeys.querySelector('.shiftKey').cloneNode(true);
+const MODIFIERS = ['Ctrl', 'Shift', 'Alt'];
+let hotkeyCombo = [];
+let hotkeyReleased = true;
+let savedHotkeyCombo = [];
+const btnHotkeysSave = document.getElementById('btnHotkeysSave');
+const btnHotkeysReset = document.getElementById('btnHotkeysReset');
+const ACCELERATOR_NAMES = {
+  Ctrl: 'Control', Meta: 'Super', Escape: 'Esc', Enter: 'Return', '+': 'Plus',
+  ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right',
+};
+const KEY_NAMES = Object.fromEntries(Object.entries(ACCELERATOR_NAMES).map(([key, value]) => [value, key]));
+
+btnHotkeysSave.disabled = true;
+
+function isValidHotkeyCombo(combo) {
+  return combo.length >= 2 && MODIFIERS.includes(combo[0]);
+}
+
+function showSavedHotkey() {
+  hotkeyCombo = [...savedHotkeyCombo];
+  renderHotkeyCombo();
+  renderWelcomeHotkey();
+  btnHotkeysSave.disabled = true;
+}
+
+window.electronAPI.getHotkey().then((accelerator) => {
+  savedHotkeyCombo = accelerator.split('+').map((name) => KEY_NAMES[name] ?? name);
+  showSavedHotkey();
+});
+
+btnHotkeysSave.addEventListener('click', async () => {
+  if (!isValidHotkeyCombo(hotkeyCombo)) return;
+  const combo = [...hotkeyCombo];
+  try {
+    await window.electronAPI.setHotkey(combo.map((name) => ACCELERATOR_NAMES[name] ?? name).join('+'));
+    savedHotkeyCombo = combo;
+    renderWelcomeHotkey();
+    btnHotkeysSave.disabled = true;
+    hotkeysMessage.textContent = `Hotkey applied: ${combo.join(' + ')}`;
+  } catch (error) {
+    hotkeysMessage.textContent = error.message.replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
+  }
+});
+
+btnHotkeysReset.addEventListener('click', () => {
+  showSavedHotkey();
+  hotkeyReleased = true;
+  hotkeysMessage.textContent = `Restored the current hotkey: ${savedHotkeyCombo.join(' + ')}`;
+});
+
+function hotkeyName(event) {
+  if (event.key === ' ') return 'Space';
+  if (event.key === 'Control') return 'Ctrl';
+  return event.key.length === 1 ? event.key.toUpperCase() : event.key;
+}
+
+function comboNodes(combo) {
+  const nodes = [];
+  combo.forEach((name, i) => {
+    if (i > 0) nodes.push(document.createTextNode(' + '));
+    if (name === 'Space') return nodes.push(spaceKeyTemplate.cloneNode(true));
+    if (name === 'Shift') return nodes.push(shiftKeyTemplate.cloneNode(true));
+    const span = document.createElement('span');
+    span.textContent = name;
+    nodes.push(span);
+  });
+  return nodes;
+}
+
+function updateWideKeys(container) {
+  container.querySelectorAll(':scope > span:not(.spaceKey)').forEach((span) => {
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    // Inner width excludes the 1px borders.
+    span.classList.toggle('wide', span.textContent === 'Enter' || range.getBoundingClientRect().width > span.clientWidth);
+  });
+}
+
+const welcomeHotkey = document.querySelector('.welcome-shortcutKeys .shortcutKeys');
+
+function renderWelcomeHotKey() {
+  const desc = welcomeHotkey.querySelector('.shortcutKeys-desc');
+  welcomeHotkey.replaceChildren(...comboNodes(savedHotkeyCombo), desc);
+  // Measuring needs a visible element; updateWelcome() and the Welcome Screen button re-measure when shown.
+  updateWideKeys(welcomeHotkey);
+}
+
+function renderHotkeyCombo() {
+  hotkeys.replaceChildren(...comboNodes(hotkeyCombo));
+  updateWideKeys(hotkeys);
+}
+
+function isHotkeyRecording() {
+  return !settingsPanel.hidden && settingItems[1].classList.contains('active');
+}
+
+// Capture phase so Escape is recorded instead of hiding the window.
+window.addEventListener('keydown', (event) => {
+  if (!isHotkeyRecording()) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  if (hotkeyReleased) {
+    hotkeyCombo = [];
+    hotkeyReleased = false;
+  }
+  const name = hotkeyName(event);
+  if (!hotkeyCombo.includes(name)) hotkeyCombo.push(name);
+  renderHotkeyCombo();
+  btnHotkeysSave.disabled = true;
+  hotkeysMessage.textContent = 'Recording...';
+}, true);
+
+window.addEventListener('keyup', (event) => {
+  if (!isHotkeyRecording() || hotkeyReleased) return;
+  event.preventDefault();
+  hotkeyReleased = true;
+  if (hotkeyCombo.length < 2) {
+    hotkeysMessage.textContent = 'Invalid: a single key is not allowed. Combine a modifier (Ctrl, Alt or Shift) with another key.';
+  } else if (!MODIFIERS.includes(hotkeyCombo[0])) {
+    hotkeysMessage.textContent = 'Invalid: the first key must be Ctrl, Alt or Shift.';
+  } else {
+    hotkeysMessage.textContent = `Valid combination: ${hotkeyCombo.join(' + ')}. Click Save to apply it.`;
+    btnHotkeysSave.disabled = hotkeyCombo.join('+') === savedHotkeyCombo.join('+');
+  }
+}, true);
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') window.electronAPI.hideToTray();

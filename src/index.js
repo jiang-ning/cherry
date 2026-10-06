@@ -70,10 +70,10 @@ function showMainWindow() {
 
 function createTray() {
   tray = new Tray(path.join(IMAGES_DIR, 'tray.png'));
-  tray.setToolTip('WithinFile');
+  tray.setToolTip('Inwordia');
   tray.on('double-click', showMainWindow);
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Open WithinFile', click: showMainWindow },
+    { label: 'Open Inwordia', click: showMainWindow },
     { type: 'separator' },
     {
       label: 'Exit',
@@ -193,6 +193,27 @@ function normalizeExtension(input) {
   return /^\.[a-z0-9_+-]{1,16}$/.test(extension) ? extension : null;
 }
 
+const DEFAULT_HOTKEY = 'Control+Shift+Space';
+let hotkey = DEFAULT_HOTKEY;
+
+ipcMain.handle('hotkey:get', () => hotkey);
+
+ipcMain.handle('hotkey:set', async (_event, accelerator) => {
+  if (typeof accelerator !== 'string' || !/^[\w+]+$/.test(accelerator)) throw new Error('Invalid hotkey.');
+  if (accelerator === hotkey) return hotkey;
+  let registered = false;
+  try {
+    registered = globalShortcut.register(accelerator, showMainWindow);
+  } catch {
+    throw new Error('This combination is not supported.');
+  }
+  if (!registered) throw new Error('This combination is already in use by another application.');
+  globalShortcut.unregister(hotkey);
+  hotkey = accelerator;
+  await saveSettings();
+  return hotkey;
+});
+
 function getSettingsPath() {
   return path.join(app.getPath('userData'), 'settings.json');
 }
@@ -210,10 +231,11 @@ async function loadSettings() {
   indexExtensions = Array.isArray(settings.indexExtensions)
     ? settings.indexExtensions.map(normalizeExtension).filter(Boolean)
     : [...DEFAULT_EXTENSIONS];
+  if (typeof settings.hotkey === 'string' && /^[\w+]+$/.test(settings.hotkey)) hotkey = settings.hotkey;
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, hotkey }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
@@ -312,7 +334,10 @@ if(!app.requestSingleInstanceLock()) {
     startIndexWorker();
     createWindow();
     createTray();
-    if (process.platform === 'win32') globalShortcut.register('Control+Shift+Space', showMainWindow);
+    if (process.platform === 'win32' && !globalShortcut.register(hotkey, showMainWindow)) {
+      hotkey = DEFAULT_HOTKEY;
+      globalShortcut.register(hotkey, showMainWindow);
+    }
   });
 }
 
