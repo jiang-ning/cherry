@@ -445,7 +445,7 @@ function updateWideKeys(container) {
 
 const welcomeHotkey = document.querySelector('.welcome-shortcutKeys .shortcutKeys');
 
-function renderWelcomeHotKey() {
+function renderWelcomeHotkey() {
   const desc = welcomeHotkey.querySelector('.shortcutKeys-desc');
   welcomeHotkey.replaceChildren(...comboNodes(savedHotkeyCombo), desc);
   // Measuring needs a visible element; updateWelcome() and the Welcome Screen button re-measure when shown.
