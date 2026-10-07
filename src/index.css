@@ -24,16 +24,27 @@ button {
   transition: all 0.1s ease-in-out;
 }
 
-button:hover,
-button.primary {
+button:hover {
   background: #ffda6a;
   border-color: #4a263866;
   color: #000;
 }
 
+button.primary {
+  background: #ffda6acc;
+  border-color: #4a263866;
+}
+
+button.primary:hover {
+  background: #ffda6a;
+  border-color: #4a2638;
+}
+
 .container {
-  background-color: #fff;
-  border: 1px solid #ccc;
+  background-color: #ffffff99;
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid #ffffff80;
   border-radius: 30px;
   box-shadow: 0 0 16px #00000033;
   margin: 20px;
@@ -41,6 +52,9 @@ button.primary {
 }
 
 #keyword {
+  position: relative;
+  z-index: 1;
+  width: 100%;
   padding: 5px 16px 5px 0;
   -webkit-user-select: text;
   user-select: text;
@@ -52,6 +66,35 @@ button.primary {
   line-height: 30px;
   font-size: 1rem;
   border-radius: 0 30px 30px 0;
+  background: transparent;
+  color: transparent;
+  caret-color: #4a2638;
+  -webkit-text-fill-color: transparent;
+}
+
+.keyword-input-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+}
+
+.keywordHighlight {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  padding: 5px 16px 5px 0;
+  white-space: pre;
+  font-size: 1rem;
+  line-height: 30px;
+  pointer-events: none;
+}
+
+.query-operator {
+  border-radius: 3px;
+  background: #ddf6f0;
+  color: #185c50;
+  font-weight: 700;
 }
 
 /* On Windows, drag regions swallow mouse input, so interactive parts must opt out. */
@@ -293,6 +336,32 @@ button.primary {
   margin: 4px;
 }
 
+.shortcutKeys .backspaceKey {
+  width: 90px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 40px;
+}
+
+.shortcutKeys .backspaceKey svg {
+  fill: #999;
+  margin-right: 4px;
+}
+
+.shortcutKeys .enterKey {
+  width: 90px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 40px;
+}
+
+.shortcutKeys .enterKey svg {
+  fill: #999;
+  margin-left: 4px;
+}
+
 .search-status {
   padding: 6px 0;
   color: #666;
@@ -395,7 +464,6 @@ button.primary {
 .setting-item {
   flex: 0 0 100%;
   min-width: 0;
-  margin-bottom: 10px;
   visibility: hidden;
   /* Delay hiding so the outgoing pane stays visible while it slides away. */
   transition: transform 0.3s ease, visibility 0s 0.3s;
@@ -425,10 +493,6 @@ button.primary {
   margin-bottom: 6px;
 }
 
-#btnWelcomeScreen {
-  margin-left: 10px;
-}
-
 .setting-menu-item {
   color: #666;
   font-weight: 600;
@@ -436,6 +500,10 @@ button.primary {
   padding: 4px 8px;
   border-radius: 4px;
   transition: color 0.2s;
+}
+
+.setting-menu-seperator {
+  color: #ccc;
 }
 
 .setting-menu-item:hover {
@@ -461,4 +529,33 @@ button.primary {
   justify-content: center;
   gap: 8px;
   margin-top: 12px;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1e1e1e;
+    color: #ccc;
+  }
+  .file-name {
+    color: #fff;
+  }
+  .file-modified {
+    color: #aaa;
+  }
+  .file-path {
+    color: #888;
+  }
+  .file-preview {
+    color: #aaa;
+  }
+  .setting-menu-item {
+    color: #ccc;
+  }
+  .setting-menu-item.active {
+    color: #fff;
+  }
+  .setting-menu-seperator {
+    color: #555;
+  }
 }
