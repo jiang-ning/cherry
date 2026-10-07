@@ -13,7 +13,7 @@ const STATE_SKIPPED = 2;
 
 // Wraps the FTS query so both search paths return a small preview window instead of full file text.
 const previewSelect = (innerQuery) => `
-  SELECT path, modifiedMs, textLength, matchCount,
+  SELECT path, modifiedMs, textLength, matchCount, content,
     max(1, position - @before) AS windowStart,
     substr(content, max(1, position - @before), length(@query) + @previewLength) AS window
   FROM (${innerQuery})
@@ -291,7 +291,7 @@ class FileIndex {
       };
     });
 
-    return { results, limitReached: matcheddFiles.length > MAX_RESULTS };
+    return { results, limitReached: matchedFiles.length > MAX_RESULTS };
   };
 
   close() {

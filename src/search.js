@@ -144,7 +144,7 @@ function parseBooleanQuery(rawQuery) {
 function findHighlights(text, query, wholeWord = false) {
   const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = wholeWord
-    ? new RegExp(`(?<![\\p{L}\\p{N}_]${escapedQuery}(?![\\p{L}\\p{N}_])`, 'giu')
+    ? new RegExp(`(?<![\\p{L}\\p{N}_])${escapedQuery}(?![\\p{L}\\p{N}_])`, 'giu')
     : new RegExp(escapedQuery, 'giu');
   return [...text.matchAll(pattern)].map((match) => ({ start: match.index, length: match[0].length }));
 }

@@ -41,10 +41,8 @@ button.primary:hover {
 }
 
 .container {
-  background-color: #ffffff99;
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid #ffffff80;
+  background-color: #ffffff;
+  border: 1px solid #ccc;
   border-radius: 30px;
   box-shadow: 0 0 16px #00000033;
   margin: 20px;
@@ -65,6 +63,9 @@ button.primary:hover {
   height: 30px;
   line-height: 30px;
   font-size: 1rem;
+  font-family: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
   border-radius: 0 30px 30px 0;
   background: transparent;
   color: transparent;
@@ -86,6 +87,9 @@ button.primary:hover {
   padding: 5px 16px 5px 0;
   white-space: pre;
   font-size: 1rem;
+  font-family: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
   line-height: 30px;
   pointer-events: none;
 }
@@ -94,7 +98,6 @@ button.primary:hover {
   border-radius: 3px;
   background: #ddf6f0;
   color: #185c50;
-  font-weight: 700;
 }
 
 /* On Windows, drag regions swallow mouse input, so interactive parts must opt out. */

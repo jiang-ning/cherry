@@ -37,12 +37,7 @@ const createWindow = () => {
     },
     titleBarStyle: 'hidden',
     // titleBarStyle: 'customButtonsOnHover', // for mac screenshot
-    // Real blur-behind needs OS support; CSS backdrop-filter can't see past the window.
-    ...(process.platform === 'win32'
-      ? { backgroundMaterial: 'acrylic' }
-      : process.platform === 'darwin'
-        ? { vibrancy: 'under-window', transparent: true }
-        : { transparent: true }),
+    transparent: true,
     frame: false
   });
 
