@@ -174,7 +174,7 @@ class FileIndex {
     for (const row of statement.iterate(searchParams)) {
       const matches = wholeWord ? findHighlights(row.content, query, true) : null;
       if (wholeWord && !matches.length) continue;
-      row.push({ row, matches });
+      rows.push({ row, matches });
       if (rows.length > MAX_RESULTS) break;
     }
 

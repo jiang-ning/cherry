@@ -98,7 +98,7 @@ function highlightedPreview(preview, highlights) {
 }
 
 function updateKeywordHighlight() {
-  const query = keywordHighlight.value ?? '';
+  const query = keywordInput.value;
   const fragment = document.createDocumentFragment();
   const tokenPattern = /"[^"]*"|\S+/g;
   let position = 0;

@@ -79,7 +79,7 @@ button.primary:hover {
   height: 40px;
 }
 
-.keywordHighlight {
+#keywordHighlight {
   position: absolute;
   inset: 0;
   overflow: hidden;
