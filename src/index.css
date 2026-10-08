@@ -349,7 +349,7 @@ button.primary:hover {
 
 .shortcutKeys .backspaceKey svg {
   fill: #999;
-  margin-right: 4px;
+  margin-left: 4px;
 }
 
 .shortcutKeys .enterKey {
