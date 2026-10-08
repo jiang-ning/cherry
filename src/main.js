@@ -272,6 +272,15 @@ const themeButtons = {
   dark: document.querySelector('#themeSelection .theme.dark')
 }
 
+function renderTheme(theme) {
+  for (const [name, button] of Object.entries(themeButtons)) button.classList.toggle('active', name === 'theme');
+}
+
+for (const [name, button] of Object.entries(themeButtons)) {
+  button.addEventListener('click', async () => renderTheme(await window.electronAPI.setTheme(name)));
+}
+window.electronAPI.getTheme().then(renderTheme);
+
 document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
   const welcome = document.getElementById('welcome');
   settingsPanel.hidden = true;
