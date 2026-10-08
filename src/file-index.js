@@ -1,6 +1,6 @@
 const path = require('node:path');
 const Database = require('better-sqlite3');
-const { findHighlights } = require('./search');
+const { findHighlights, parseBooleanQuery, parseSearchQuery } = require('./search');
 
 const MAX_RESULTS = 500;
 const PREVIEW_BEFORE = 80;
@@ -13,7 +13,7 @@ const STATE_SKIPPED = 2;
 
 // Wraps the FTS query so both search paths return a small preview window instead of full file text.
 const previewSelect = (innerQuery) => `
-  SELECT path, modifiedMs, textLength, matchCount,
+  SELECT path, modifiedMs, textLength, matchCount, content,
     max(1, position - @before) AS windowStart,
     substr(content, max(1, position - @before), length(@query) + @previewLength) AS window
   FROM (${innerQuery})
@@ -107,13 +107,13 @@ class FileIndex {
       SELECT ${matchColumns}
       FROM files_fts JOIN files f ON f.id = files_fts.rowid
       WHERE files_fts MATCH @match AND f.state = ${STATE_INDEXED}
-      ORDER BY f.modified_ms DESC LIMIT @limit
+      ORDER BY f.modified_ms DESC
     `));
     this.likeStatement = this.db.prepare(previewSelect(`
       SELECT ${matchColumns}
       FROM files f
       WHERE f.state = ${STATE_INDEXED} AND f.content LIKE @like ESCAPE '\\'
-      ORDER BY f.modified_ms DESC LIMIT @limit
+      ORDER BY f.modified_ms DESC
     `));
   }
 
@@ -155,30 +155,144 @@ class FileIndex {
   }
 
   search(rawQuery) {
-    const query = rawQuery.replace(/\s+/g, ' ').trim();
-    const params = { query, before: PREVIEW_BEFORE, previewLength: PREVIEW_LENGTH, limit: MAX_RESULTS + 1 };
-    // Trigram MATCH needs at least 3 characters; shorter queries fall back to a LIKE scan.
-    const rows = [...query].length >= MIN_TRIGRAM_QUERY_LENGTH
-      ? this.matchStatement.all({ ...params, match: `"${query.replaceAll('"', '""')}"` })
-      : this.likeStatement.all({ ...params, like: `%${query.replace(/[\\%_]/g, '\\$&')}%` });
+    const booleanQuery = parseBooleanQuery(rawQuery);
+    if (booleanQuery?.invalid) return { results: [], limitReached: false };
+    if (booleanQuery) return this.searchBoolean(booleanQuery.expression);
 
-    const results = rows.slice(0, MAX_RESULTS).map((row) => {
-      const prefix = row.windowStart > 1 ? '…' : '';
-      const suffix = row.windowStart - 1 + [...row.window].length < row.textLength ? '…' : '';
-      const highlights = findHighlights(row.window, query)
+    const { query, wholeWord } = parseSearchQuery(rawQuery);
+    if (!query) return { results: [], limitReached: false };
+    const params = { query, before: PREVIEW_BEFORE, previewLength: PREVIEW_LENGTH };
+    // Trigram MATCH needs at least 3 characters; shorter queries fall back to a LIKE scan.
+    const statement = [...query].length >= MIN_TRIGRAM_QUERY_LENGTH
+      ? this.matchStatement
+      : this.likeStatement;
+    const searchParams = [...query].length >= MIN_TRIGRAM_QUERY_LENGTH
+      ? { ...params, match: `"${query.replaceAll('"', '""')}"` }
+      : { ...params, like: `%${query.replace(/[\\%_]/g, '\\$&')}%` };
+
+    const rows = [];
+    for (const row of statement.iterate(searchParams)) {
+      const matches = wholeWord ? findHighlights(row.content, query, true) : null;
+      if (wholeWord && !matches.length) continue;
+      rows.push({ row, matches });
+      if (rows.length > MAX_RESULTS) break;
+    }
+
+    const results = rows.slice(0, MAX_RESULTS).map(({ row, matches }) => {
+      const matchPosition = wholeWord ? matches[0].start + 1 : row.windowStart;
+      const windowStart = wholeWord ? Math.max(1, matchPosition - PREVIEW_BEFORE) : row.windowStart;
+      const window = wholeWord
+        ? row.content.slice(windowStart - 1, windowStart - 1 + PREVIEW_LENGTH + query.length)
+        : row.window;
+      const prefix = windowStart > 1 ? '…' : '';
+      const suffix = windowStart - 1 + [...window].length < row.textLength ? '…' : '';
+      const highlights = (wholeWord ? findHighlights(window, query, true) : findHighlights(window, query))
         .map(({ start, length }) => ({ start: start + prefix.length, length }));
       return {
         path: row.path,
         name: path.basename(row.path),
         modified: row.modifiedMs,
-        matchCount: Math.max(row.matchCount, highlights.length, 1),
-        preview: `${prefix}${row.window}${suffix}`,
+        matchCount: wholeWord ? matches.length : Math.max(row.matchCount, highlights.length, 1),
+        preview: `${prefix}${window}${suffix}`,
         highlights
       };
     });
 
     return { results, limitReached: rows.length > MAX_RESULTS };
   }
+
+  searchBoolean(expression) {
+    const terms = [];
+    const collectTerms = (node) => {
+      if (node.type === 'term') {
+        node.id = terms.length;
+        terms.push(node);
+        return;
+      }
+      collectTerms(node.left);
+      collectTerms(node.right);
+    };
+    collectTerms(expression);
+
+    const files = new Map();
+    const termMatches = new Map();
+    for (const term of terms) {
+      const params = { query: term.query, before: PREVIEW_BEFORE, previewLength: PREVIEW_LENGTH };
+      const statement = [...term.query].length >= MIN_TRIGRAM_QUERY_LENGTH
+        ? this.matchStatement
+        : this.likeStatement;
+      const searchParams = [...term.query].length >= MIN_TRIGRAM_QUERY_LENGTH
+        ? { ...params, match: `"${term.query.replaceAll('"', '""')}"` }
+        : { ...params, like: `%${term.query.replace(/[\\%_]/g, '\\$&')}%` };
+      const matches = new Set();
+      for (const row of statement.iterate(searchParams)) {
+        if (term.wholeWord && !findHighlights(row.content, term.query, true).length) continue;
+        matches.add(row.path);
+        files.set(row.path, row);
+      }
+      termMatches.set(term.id, matches);
+    }
+
+    const evaluate = (node, filePath) => {
+      if (node.type === 'term') {
+        return termMatches.get(node.id).has(filePath)
+          ? { matched: true, terms: [node] }
+          : { matched: false, terms: [] };
+      }
+      const left = evaluate(node.left, filePath);
+      const right = evaluate(node.right, filePath);
+      if (node.type === 'and') {
+        return left.matched && right.matched
+          ? { matched: true, terms: [...left.terms, ...right.terms] }
+          : { matched: false, terms: [] };
+      }
+      if (node.type === 'andNot') {
+        return left.matched && !right.matched ? left : { matched: false, terms: [] };
+      }
+      return {
+        matched: left.matched || right.matched,
+        terms: [...(left.matched ? left.terms : []), ...(right.matched ? right.terms : [])]
+      };
+    };
+
+    const matchedFiles = [];
+    for (const [filePath, row] of files) {
+      const result = evaluate(expression, filePath);
+      if (result.matched) matchedFiles.push({ row, terms: result.terms });
+    }
+    matchedFiles.sort((left, right) => right.row.modifiedMs - left.row.modifiedMs);
+    const results = matchedFiles.slice(0, MAX_RESULTS).map(({ row, terms: matchedTerms }) => {
+      const matches = matchedTerms.flatMap((term) => findHighlights(row.content, term.query, term.wholeWord))
+        .sort((left, right) => left.start - right.start);
+      const highlights = [];
+      for (const match of matches) {
+        const previous = highlights.at(-1);
+        if (previous && match.start < previous.start + previous.length) {
+          previous.length = Math.max(previous.length, match.start + match.length - previous.start);
+        } else {
+          highlights.push({ ...match });
+        }
+      }
+      const windowStart = Math.max(1, highlights[0].start + 1 - PREVIEW_BEFORE);
+      const longestTerm = Math.max(...matchedTerms.map((term) => term.query.length));
+      const window = row.content.slice(windowStart - 1, windowStart - 1 + PREVIEW_LENGTH + longestTerm);
+      const prefix = windowStart > 1 ? '…' : '';
+      const suffix = windowStart - 1 + [...window].length < row.textLength ? '…' : '';
+      const previewHighlights = highlights
+        .filter(({ start }) => start >= windowStart - 1 && start < windowStart - 1 + window.length)
+        .map(({ start, length }) => ({ start: start - windowStart + 1 + prefix.length, length }));
+      return {
+        path: row.path,
+        name: path.basename(row.path),
+        modified: row.modifiedMs,
+        matchCount: highlights.length,
+        preview: `${prefix}${window}${suffix}`,
+        highlights: previewHighlights
+      };
+    });
+
+    return { results, limitReached: matchedFiles.length > MAX_RESULTS };
+  };
 
   close() {
     this.db.close();

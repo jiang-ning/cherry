@@ -1,4 +1,5 @@
 const keywordInput = document.getElementById('keyword');
+const keywordHighlight = document.getElementById('keywordHighlight');
 const fileList = document.getElementById('fileList');
 const brandMark = document.querySelector('.brand-mark');
 const pupils = [...(brandMark?.querySelectorAll('.pupil') ?? [])];
@@ -94,6 +95,26 @@ function highlightedPreview(preview, highlights) {
   }
   fragment.append(preview.slice(position));
   return fragment;
+}
+
+function updateKeywordHighlight() {
+  const query = keywordInput.value;
+  const fragment = document.createDocumentFragment();
+  const tokenPattern = /"[^"]*"|\S+/g;
+  let position = 0;
+  for (const match of query.matchAll(tokenPattern)) {
+    const token = match[0];
+    if (token.startsWith('"') || !['AND', 'OR', 'NOT'].includes(token)) continue;
+    fragment.append(query.slice(position, match.index));
+    const operator = document.createElement('span');
+    operator.className = 'query-operator';
+    operator.textContent = token;
+    fragment.append(operator);
+    position = match.index + token.length;
+  }
+  fragment.append(query.slice(position));
+  keywordHighlight.replaceChildren(fragment);
+  keywordHighlight.scrollLeft = keywordInput.scrollLeft;
 }
 
 function renderFile(file) {
@@ -258,12 +279,14 @@ document.getElementById('welcome-ok').addEventListener('click', () => {
   localStorage.setItem(WELCOME_DISMISSED_KEY, '1');
   welcomePinned = false;
   fileList.hidden = fileList.childElementCount === 0;
+  showSettingItem(0);
   updateWelcome();
 });
 document.getElementById('btnSettings').addEventListener('click', () => {
   welcomePinned = false;
   settingsPanel.hidden = false;
   fileList.hidden = true;
+  showSettingItem(0);
   updateWelcome();
   updateIndexAmount();
   updateDiskUsage();
@@ -337,6 +360,66 @@ document.getElementById('indexFileExtensionRemove').addEventListener('click', as
 });
 window.electronAPI.getIndexExtensions().then(renderIndexExtensions);
 
+const excludedFolderList = document.getElementById('indexExcludeFolderList');
+let excludedFolders = [];
+let selectedExcludedFolder = null;
+
+function renderExcludedFolders(folders) {
+  excludedFolders = folders;
+  if (!folders.includes(selectedExcludedFolder)) selectedExcludedFolder = null;
+  excludedFolderList.replaceChildren(...folders.map((folder) => {
+    const item = document.createElement('div');
+    item.className = 'index-path-item';
+    item.classList.toggle('selected', folder === selectedExcludedFolder);
+    item.textContent = folder;
+    item.addEventListener('click', () => {
+      selectedExcludedFolder = folder;
+      renderExcludedFolders(excludedFolders);
+    });
+    return item;
+  }));
+}
+
+document.getElementById('indexExcludeFolderAdd').addEventListener('click', () => {
+  const existing = excludedFolderList.querySelector('.index-extension-input');
+  if (existing) return existing.focus();
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'index-extension-input';
+  input.placeholder = 'folder name';
+  input.maxLength = 255;
+  let committing = false;
+
+  input.addEventListener('keydown', async (event) => {
+    // Keep Escape from hidding the window while editing.
+    event.stopPropagation();
+    if (event.key === 'Escape') return input.remove();
+    if (event.key !== 'Enter' || !input.value.trim()) return;
+    committing = true;
+    try {
+      renderExcludedFolders(await window.electronAPI.addExcludedFolder(input.value));
+    } catch {
+      input.classList.add('invalid');
+      input.title = 'Enter a folder name only, without slashes or special characters';
+      committing = false;
+    }
+  });
+  input.addEventListener('input', () => input.classList.remove('invalid'));
+  input.addEventListener('blur', () => {
+    if (!committing) input.remove();
+  });
+
+  excludedFolderList.append(input);
+  input.scrollIntoView({ block: 'nearest' });
+  input.focus();
+});
+document.getElementById('indexExcludeFolderRemove').addEventListener('click', async () => {
+  if (!selectedExcludedFolder) return;
+  renderExcludedFolders(await window.electronAPI.removeExcludedFolder(selectedExcludedFolder));
+});
+window.electronAPI.getExcludedFolders().then(renderExcludedFolders);
+
 window.electronAPI.onIndexStatus((status) => {
   indexStatus = status;
   updateIndexAmount();
@@ -365,6 +448,19 @@ const hotkeys = document.getElementById('hotkeys');
 const hotkeysMessage = document.getElementById('hotkeys-message');
 const spaceKeyTemplate = hotkeys.querySelector('.spaceKey').cloneNode(true);
 const shiftKeyTemplate = hotkeys.querySelector('.shiftKey').cloneNode(true);
+const backspaceKeyTemplate = Object.assign(document.createElement('template'), { innerHTML: `
+  <span class="backspaceKey">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+      <path d="M5.83 5.146a.5.5 0 0 0 0 .708L7.975 8l-2.147 2.146a.5.5 0 0 0 .707.708l2.147-2.147 2.146 2.147a.5.5 0 0 0 .707-.708L9.39 8l2.146-2.146a.5.5 0 0 0-.707-.708L8.683 7.293 6.536 5.146a.5.5 0 0 0-.707 0z"/>
+      <path d="M13.683 1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-7.08a2 2 0 0 1-1.519-.698L.241 8.65a1 1 0 0 1 0-1.302L5.084 1.7A2 2 0 0 1 6.603 1zm-7.08 1a1 1 0 0 0-.76.35L1 8l4.844 5.65a1 1 0 0 0 .759.35h7.08a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"/>
+    </svg>Backspace
+  </span>`.trim() }).content.firstElementChild;
+const enterTemplate = Object.assign(document.createElement('template'), { innerHTML: `
+  <span class="enterKey">Enter
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+      <path fill-rule="evenodd" d="M14.5 1.5a.5.5 0 0 1 .5.5v4.8a2.5 2.5 0 0 1-2.5 2.5H2.707l3.347 3.346a.5.5 0 0 1-.708.708l-4.2-4.2a.5.5 0 0 1 0-.708l4-4a.5.5 0 1 1 .708.708L2.707 8.3H12.5A1.5 1.5 0 0 0 14 6.8V2a.5.5 0 0 1 .5-.5"/>
+    </svg>
+  </span>`.trim() }).content.firstElementChild;
 const MODIFIERS = ['Ctrl', 'Shift', 'Alt'];
 let hotkeyCombo = [];
 let hotkeyReleased = true;
@@ -427,6 +523,8 @@ function comboNodes(combo) {
     if (i > 0) nodes.push(document.createTextNode(' + '));
     if (name === 'Space') return nodes.push(spaceKeyTemplate.cloneNode(true));
     if (name === 'Shift') return nodes.push(shiftKeyTemplate.cloneNode(true));
+    if (name === 'Backspace') return nodes.push(backspaceKeyTemplate.cloneNode(true));
+    if (name === 'Enter') return nodes.push(enterTemplate.cloneNode(true));
     const span = document.createElement('span');
     span.textContent = name;
     nodes.push(span);
@@ -495,12 +593,17 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') window.electronAPI.hideToTray();
 });
 keywordInput.addEventListener('input', () => {
+  updateKeywordHighlight();
   settingsPanel.hidden = true;
   welcomePinned = false;
   updateWelcome();
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(runSearch, 150);
 });
+keywordInput.addEventListener('scroll', () => {
+  keywordHighlight.scrollLeft = keywordInput.scrollLeft;
+});
+updateKeywordHighlight();
 brandMark.addEventListener('click', () => {
   welcomePinned = false;
   settingsPanel.hidden = !settingsPanel.hidden;

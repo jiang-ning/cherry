@@ -12,6 +12,7 @@ const WAIT_MS = 2000;
 const index = new FileIndex(workerData.databasePath);
 let roots = workerData.roots;
 let extensions = new Set(workerData.extensions);
+let excludedFolders = new Set(workerData.excludedFolders.map((name) => name.toLowerCase()));
 let rescanRequested = false;
 let wakeScan = null;
 let idle = false;
@@ -51,7 +52,7 @@ async function describeEntry(directory, entry) {
     isFile = stats.isFile();
   }
 
-  if (isDirectory) return isIgnoredDirectory(entry.name) ? null : { directory: entryPath };
+  if (isDirectory) return isIgnoredDirectory(entry.name, excludedFolders) ? null : { directory: entryPath };
   if (!isFile || !isSupportedFile(entry.name, extensions)) return null;
   try {
     stats ??= await fs.stat(entryPath);
@@ -192,6 +193,12 @@ parentPort.on('message', (message) => {
 
   if (message.type === 'set-extensions') {
     extensions = new Set(message.extensions);
+    requestCatchUp();
+    return;
+  }
+
+  if (message.type === 'set-excluded-folders') {
+    excludedFolders = new Set(message.excludedFolders.map((name) => name.toLowerCase()));
     requestCatchUp();
     return;
   }

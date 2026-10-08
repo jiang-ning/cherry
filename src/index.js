@@ -1,10 +1,10 @@
-const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell, dialog, nativeTheme } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs/promises');
 const { randomUUID } = require('crypto');
 const { Worker } = require('worker_threads');
-const { DEFAULT_EXTENSIONS } = require('./search');
+const { DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS } = require('./search');
 
 const IDLE_THRESHOLD_SECONDS = 60;
 const IMAGES_DIR = path.join(__dirname, 'images');
@@ -16,6 +16,7 @@ let indexWorker;
 let indexStatus = null;
 let indexPaths = [];
 let indexExtensions = [];
+let excludedFolders = [];
 const pendingSearches = new Map();
 
 const createWindow = () => {
@@ -187,6 +188,26 @@ ipcMain.handle('index-extensions:remove', (_event, extension) => {
   return applyIndexExtensions(indexExtensions.filter((item) => item !== extension));
 });
 
+ipcMain.handle('excluded-folders:get', () => excludedFolders);
+
+ipcMain.handle('excluded-folders:add', (_event, input) => {
+  const name = normalizeFolderName(input);
+  if (!name) throw new Error('Enter a folder name, not a path');
+  if (excludedFolders.some((item) => item.toLowerCase() === name.toLowerCase())) return excludedFolders;
+  return applyExcludedFolders([...excludedFolders, name]);
+});
+
+ipcMain.handle('excluded-folders:remove', (_event, name) => {
+  if (!excludedFolders.includes(name)) return excludedFolders;
+  return applyExcludedFolders(excludedFolders.filter((item) => item !== name));
+});
+
+function normalizeFolderName(input) {
+  if (typeof input !== 'string') return null;
+  const name = input.trim();
+  return name && name.length <= 255 && !/[\\/:*?"<>|]/.test(name) && name !== '.' && name !== '..' ? name : null;
+}
+
 function normalizeExtension(input) {
   if (typeof input !== 'string') return null;
   const extension = '.' + input.trim().toLowerCase().replace(/^\*?\./, '');
@@ -231,11 +252,14 @@ async function loadSettings() {
   indexExtensions = Array.isArray(settings.indexExtensions)
     ? settings.indexExtensions.map(normalizeExtension).filter(Boolean)
     : [...DEFAULT_EXTENSIONS];
+  excludedFolders = Array.isArray(settings.excludedFolders)
+    ? settings.excludedFolders.map(normalizeFolderName).filter(Boolean)
+    : [...DEFAULT_EXCLUDED_FOLDERS];
   if (typeof settings.hotkey === 'string' && /^[\w+]+$/.test(settings.hotkey)) hotkey = settings.hotkey;
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, hotkey }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
@@ -250,6 +274,13 @@ async function applyIndexExtensions(extensions) {
   await saveSettings();
   indexWorker?.postMessage({ type: 'set-extensions', extensions: indexExtensions });
   return indexExtensions;
+}
+
+async function applyExcludedFolders(folders) {
+  excludedFolders = folders;
+  await saveSettings();
+  indexWorker?.postMessage({ type: 'set-excluded-folders', excludedFolders });
+  return excludedFolders;
 }
 
 ipcMain.handle('file:open', (_event, filePath) => {
@@ -296,7 +327,8 @@ function startIndexWorker() {
     workerData: {
       databasePath: getDatabasePath(),
       roots: indexPaths,
-      extensions: indexExtensions
+      extensions: indexExtensions,
+      excludedFolders
     }
   });
   indexWorker.on('message', handleWorkerMessage);
@@ -330,6 +362,7 @@ if(!app.requestSingleInstanceLock()) {
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.on('ready', async () => {
+    nativeTheme.themeSource = 'system';
     await loadSettings();
     startIndexWorker();
     createWindow();
