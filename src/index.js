@@ -28,14 +28,13 @@ const createWindow = () => {
     center: true,
     minWidth: 800,
     maxWidth: 800,
-    minHeight: 100,
-    resizeable: false,
+    resizeble: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true
     },
-    titleBarStyle: 'hidden',
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hidden' } : {}),
     // titleBarStyle: 'customButtonsOnHover', // for mac screenshot
     transparent: true,
     frame: false
