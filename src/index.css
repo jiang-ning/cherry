@@ -653,6 +653,10 @@ button.primary:hover {
     color: #ccc;
     border-color: #999;
   }
+  .theme.active {
+    color: #eee;
+    border-color: #ffda6acc;
+  }
   .switch-slider {
     background-color: #333;
   }

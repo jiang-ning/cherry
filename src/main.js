@@ -273,7 +273,7 @@ const themeButtons = {
 }
 
 function renderTheme(theme) {
-  for (const [name, button] of Object.entries(themeButtons)) button.classList.toggle('active', name === 'theme');
+  for (const [name, button] of Object.entries(themeButtons)) button.classList.toggle('active', name === theme);
 }
 
 for (const [name, button] of Object.entries(themeButtons)) {
