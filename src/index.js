@@ -216,6 +216,18 @@ function normalizeExtension(input) {
 
 const DEFAULT_HOTKEY = 'Control+Shift+Space';
 let hotkey = DEFAULT_HOTKEY;
+const THEMES = ['system', 'light', 'dark'];
+let theme = 'system';
+
+ipcMain.handle('theme:get', () => theme);
+
+ipcMain.handle('theme:set', async (_event, value) => {
+  if (!THEMES.includes(value)) throw new Error('Invalid theme.');
+  theme = value;
+  nativeTheme.themeSource = theme;
+  await saveSettings();
+  return theme;
+});
 
 ipcMain.handle('hotkey:get', () => hotkey);
 
@@ -256,10 +268,11 @@ async function loadSettings() {
     ? settings.excludedFolders.map(normalizeFolderName).filter(Boolean)
     : [...DEFAULT_EXCLUDED_FOLDERS];
   if (typeof settings.hotkey === 'string' && /^[\w+]+$/.test(settings.hotkey)) hotkey = settings.hotkey;
+  if (THEMES.includes(settings.theme)) theme = settings.theme;
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
@@ -362,8 +375,8 @@ if(!app.requestSingleInstanceLock()) {
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.on('ready', async () => {
-    nativeTheme.themeSource = 'system';
     await loadSettings();
+    nativeTheme.themeSource = theme;
     startIndexWorker();
     createWindow();
     createTray();

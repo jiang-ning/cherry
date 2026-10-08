@@ -266,6 +266,12 @@ settingMenuItems.forEach((menuItem, index) => {
   menuItem.addEventListener('click', () => showSettingItem(index));
 });
 
+const themeButtons = {
+  system: document.querySelector('#themeSelection .theme.auto'),
+  light: document.querySelector('#themeSelection .theme.light'),
+  dark: document.querySelector('#themeSelection .theme.dark')
+}
+
 document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
   const welcome = document.getElementById('welcome');
   settingsPanel.hidden = true;

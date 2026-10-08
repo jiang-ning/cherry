@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeExcludedFolder: (name) => ipcRenderer.invoke('excluded-folders:remove', name),
   getHotkey: () => ipcRenderer.invoke('hotkey:get'),
   setHotkey: (accelerator) => ipcRenderer.invoke('hotkey:set', accelerator),
+  getTheme: () => ipcRenderer.invoke('theme:get'),
+  setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
   openFile: (filePath) => ipcRenderer.invoke('file:open', filePath),
   openFolder: (filePath) => ipcRenderer.invoke('file:show-in-folder', filePath),
   onIndexStatus: (callback) => {
