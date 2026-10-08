@@ -534,9 +534,45 @@ button.primary:hover {
   margin-top: 12px;
 }
 
+#themeSelection {
+  display: flex;
+}
+
+.theme {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #eee;
+  border-radius: 50%;
+  color: #666;
+  padding: 6px;
+  margin: 6px 2px;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color border-color 0.3s ease-in-out;
+}
+
+.theme:hover {
+  border-color: #ffe28a;
+  color: #000;
+}
+
+.theme.active {
+  background-color: transparent;
+  border-color: #ffda6a;
+  color: #000;
+}
+
+.theme.dark:hover {
+  background-color: #333;
+  color: #fff;
+}
+
 /* Dark Mode */
 @media (prefers-color-scheme: dark) {
-  body {
+  /* body {
     background-color: #1e1e1e;
     color: #ccc;
   }
@@ -560,5 +596,5 @@ button.primary:hover {
   }
   .setting-menu-seperator {
     color: #555;
-  }
+  } */
 }
