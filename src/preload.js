@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resizeToContent: (height) => ipcRenderer.send('resize-to-content', height),
   search: (keyword) => ipcRenderer.invoke('search:start', keyword),
   getIndexStatus: () => ipcRenderer.invoke('index:status'),
+  getIndexLocation: () => ipcRenderer.invoke('index:location'),
   getDiskUsage: () => ipcRenderer.invoke('index:disk-usage'),
   getIndexPaths: () => ipcRenderer.invoke('index-paths:get'),
   addIndexPath: () => ipcRenderer.invoke('index-paths:add'),

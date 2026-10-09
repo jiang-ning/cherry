@@ -201,8 +201,14 @@ const settingsPanel = document.getElementById('settings');
 const indexAmount = document.getElementById('indexAmount');
 const diskSpaceUsed = document.getElementById('diskSpaceUsed');
 const diskUsageRatioChart = document.getElementById('diskUsageRatioChart');
+const indexFileLocation = document.querySelector('#indexFileLocation span');
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
+
+window.electronAPI.getIndexLocation().then((location) => {
+  indexFileLocation.textContent = location;
+  indexFileLocation.title = location;
+});
 
 function updateIndexAmount() {
   indexAmount.textContent = (indexStatus?.indexed ?? 0).toLocaleString();
@@ -427,7 +433,7 @@ document.getElementById('indexExcludeFolderAdd').addEventListener('click', () =>
   let committing = false;
 
   input.addEventListener('keydown', async (event) => {
-    // Keep Escape from hidding the window while editing.
+    // Keep Escape from hid ing the window while editing.
     event.stopPropagation();
     if (event.key === 'Escape') return input.remove();
     if (event.key !== 'Enter' || !input.value.trim()) return;

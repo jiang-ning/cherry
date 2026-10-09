@@ -147,6 +147,7 @@ ipcMain.handle('search:start', (_event, keyword) => {
 });
 
 ipcMain.handle('index:status', () => indexStatus);
+ipcMain.handle('index:location', () => getDatabasePath());
 
 ipcMain.handle('index:disk-usage', async () => {
   const databasePath = getDatabasePath();
