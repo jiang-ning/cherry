@@ -281,6 +281,26 @@ for (const [name, button] of Object.entries(themeButtons)) {
 }
 window.electronAPI.getTheme().then(renderTheme);
 
+const maximumResults = document.getElementById('maximumResults');
+const maximumResultsValue = document.getElementById('maximumResultsValue');
+function renderMaximumResults() {
+  const { min, max, value } = maximumResults;
+  maximumResults.style.setProperty('--fill', `${((value - min) / (max - min)) * 100}%`);
+  maximumResultsValue.textContent = value;
+}
+maximumResults.addEventListener('input', renderMaximumResults);
+renderMaximumResults();
+
+const launchAtStartup = document.getElementById('launchAtStartup');
+window.electronAPI.getLaunchAtStartup().then((enabled) => { launchAtStartup.checked = enabled; });
+launchAtStartup.addEventListener('change', async () => {
+  try {
+    launchAtStartup.checked = await window.electronAPI.setLaunchAtStartup(launchAtStartup.checked);
+  } catch {
+    launchAtStartup.checked = !launchAtStartup.checked;
+  }
+});
+
 document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
   const welcome = document.getElementById('welcome');
   settingsPanel.hidden = true;
@@ -605,7 +625,16 @@ window.addEventListener('keyup', (event) => {
 }, true);
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') window.electronAPI.hideToTray();
+  if (event.key !== 'Escape') return;
+  if (!keywordInput.value.trim()) return window.electronAPI.hideToTray();
+
+  event.preventDefault();
+  event.stopPropagation();
+  keywordInput.value = '';
+  keywordInput.dispatchEvent(new Event('input', { bubbles: true }));
+  clearTimeout(debounceTimer);
+  runSearch();
+  keywordInput.focus();
 });
 keywordInput.addEventListener('input', () => {
   updateKeywordHighlight();

@@ -19,10 +19,17 @@ let indexExtensions = [];
 let excludedFolders = [];
 const pendingSearches = new Map();
 
+const LOGIN_ARGS = ['--hidden'];
+let startHidden = process.argv.includes('--hidden');
+let launchAtStartup = false;
+
 const createWindow = () => {
+  const show = !startHidden;
+  startHidden = false;
 
   // Create the browser window.
   mainWindow = new BrowserWindow({
+    show,
     width: 800,
     height: 100,
     center: true,
@@ -218,6 +225,16 @@ let hotkey = DEFAULT_HOTKEY;
 const THEMES = ['system', 'light', 'dark'];
 let theme = 'system';
 
+ipcMain.handle('launch-at-startup:get', () => launchAtStartup);
+
+ipcMain.handle('launch-at-startup:set', async (_event, enabled) => {
+  if (typeof enabled !== 'boolean') throw new Error('Invalid value.');
+  app.setLoginItemSettings({ openAtLogin: enabled, args: LOGIN_ARGS });
+  launchAtStartup = enabled;
+  await saveSettings();
+  return launchAtStartup;
+});
+
 ipcMain.handle('theme:get', () => theme);
 
 ipcMain.handle('theme:set', async (_event, value) => {
@@ -268,10 +285,11 @@ async function loadSettings() {
     : [...DEFAULT_EXCLUDED_FOLDERS];
   if (typeof settings.hotkey === 'string' && /^[\w+]+$/.test(settings.hotkey)) hotkey = settings.hotkey;
   if (THEMES.includes(settings.theme)) theme = settings.theme;
+  if (typeof settings.launchAtStartup === 'boolean') launchAtStartup = settings.launchAtStartup;
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme, launchAtStartup }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
@@ -376,6 +394,7 @@ if(!app.requestSingleInstanceLock()) {
   app.on('ready', async () => {
     await loadSettings();
     nativeTheme.themeSource = theme;
+    app.setLoginItemSettings({ openAtLogin: launchAtStartup, args: LOGIN_ARGS });
     startIndexWorker();
     createWindow();
     createTray();

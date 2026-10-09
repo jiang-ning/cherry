@@ -21,6 +21,7 @@ button {
   line-height: 14px;
   padding: 6px 10px;
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.1s ease-in-out;
 }
 
@@ -268,6 +269,7 @@ button.primary:hover {
   align-items: center;
   text-align: center;
   gap: 12px;
+  overflow: hidden;
 }
 
 #welcome[hidden] {
@@ -285,6 +287,16 @@ button.primary:hover {
   justify-content: center;
   align-items: center;
   gap: 24px;
+}
+
+.welcome-introForSearch {
+  font-size: 13px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.welcome-introForSearch .intro-item + .intro-item {
+  margin-top: 8px;
 }
 
 .welcome-actions {
@@ -311,6 +323,7 @@ button.primary:hover {
   justify-content: center;
   align-items: center;
   white-space: nowrap;
+  min-width: 40px;
 }
 
 .shortcutKeys > span.wide {
@@ -536,47 +549,86 @@ button.primary:hover {
 
 #themeSelection {
   display: flex;
+  interpolate-size: allow-keywords;
 }
 
 .theme {
   display: flex;
-  width: 24px;
-  height: 24px;
-  border: 2px solid #eee;
-  border-radius: 50%;
+  box-sizing: border-box;
+  min-width: 40px;
+  height: 40px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
   color: #666;
-  padding: 6px;
+  padding: 0 11px;
   margin: 6px 2px;
   align-items: center;
   flex-wrap: nowrap;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow: hidden;
   cursor: pointer;
-  transition: background-color, border-color 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
-.theme:hover {
+.theme svg {
+  flex-shrink: 0;
+}
+
+.theme span {
+  width: 0;
+  margin-left: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: width 0.3s ease, margin-left 0.3s ease, opacity 0.2s ease;
+}
+
+.theme:hover span,
+.theme.active span {
+  width: auto;
+  margin-left: 6px;
+  opacity: 1;
+}
+
+.theme-icon-fill,
+.theme:hover .theme-icon-outline,
+.theme.active .theme-icon-outline {
+  display: none;
+}
+
+.theme:hover .theme-icon-fill,
+.theme.active .theme-icon-fill {
+  display: block;
+}
+
+.theme:hover,
+.theme.active {
   border-color: #ffe28a;
   color: #000;
 }
 
-.theme.active {
-  background-color: transparent;
-  border-color: #ffda6a;
-  color: #000;
+.theme.light:hover,
+.theme.light.active {
+  color: #ffda6a;
 }
 
-.theme.dark:hover {
-  background-color: #333;
+.theme.dark:hover,
+.theme.dark.active {
+  background-color: #666;
   color: #fff;
 }
 
 .switch {
   position: relative;
-  display: inline-block;
-  width: 44px;
-  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin: 6px 2px;
   cursor: pointer;
+}
+
+.switch-text {
+  user-select: none;
 }
 
 .switch input {
@@ -587,8 +639,10 @@ button.primary:hover {
 }
 
 .switch-slider {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 26px;
   background-color: #ddd;
   border-radius: 13px;
   transition: background-color 0.2s ease-in-out;
@@ -620,6 +674,52 @@ button.primary:hover {
   outline-offset: 2px;
 }
 
+.range-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 2px;
+}
+
+.range-slider input {
+  --fill: 0%;
+  flex: none;
+  width: 220px;
+  height: 26px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.range-slider input::-webkit-slider-runnable-track {
+  height: 26px;
+  border-radius: 13px;
+  background: linear-gradient(to right, #ffda6acc var(--fill), #ddd var(--fill));
+}
+
+.range-slider input::-webkit-slider-thumb {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 1px 3px #00000040;
+}
+
+.range-slider input:focus-visible {
+  outline: 2px solid #4a2638;
+  outline-offset: 2px;
+  border-radius: 13px;
+}
+
+.range-value {
+  min-width: 3ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Frosted Glass */
 .frosted-glass .container {
   background-color: transparent;
@@ -649,18 +749,21 @@ button.primary:hover {
     color: #666;
     border-color: #666;
   }
-  .theme:hover {
+  .theme:hover,
+  .theme.active {
     color: #ccc;
     border-color: #999;
-  }
-  .theme.active {
-    color: #eee;
-    border-color: #ffda6acc;
   }
   .switch-slider {
     background-color: #333;
   }
   .switch-slider::before {
+    background-color: #ccc;
+  }
+  .range-slider input::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, #ffda6acc var(--fill), #333 var(--fill));
+  }
+  .range-slider input::-webkit-slider-thumb {
     background-color: #ccc;
   }
   .file-name {

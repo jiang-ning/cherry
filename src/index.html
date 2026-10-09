@@ -41,6 +41,7 @@
         <div class="setting-nav">
           <span class="setting-menu-item active">General</span>
           <span class="setting-menu-item">Index</span>
+          <span class="setting-menu-item">Search</span>
           <span class="setting-menu-item">Hotkeys</span>
           <span class="setting-menu-seperator">|</span>
           <span id="btnWelcomeScreen" class="setting-menu-item">Welcome</span>
@@ -50,43 +51,60 @@
         
         <div class="setting-item active">
           <div class="setting-section">
-            <div class="setting-name">Theme</div>
-            <div class="setting-contents">
-              <div id="themeSelection">
-                <span class="theme auto">Auto</span>
-                <span class="theme light">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
-                  </svg>
-                </span>
-                <span class="theme dark">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278M4.858 1.311A7.27 7.27 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.32 7.32 0 0 0 5.205-2.162q-.506.063-1.029.063c-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286"/>
-                  </svg>
-                </span>
-              </div>
-            </div>
-          </div>
-          <div class="setting-section">
             <div class="setting-name">Launch at startup</div>
             <div class="setting-contents">
               <label class="switch">
                 <input id="launchAtStartup" type="checkbox" />
                 <span class="switch-slider"></span>
+                <span class="switch-text">Launch at startup</span>
               </label>
+            </div>
+          </div>
+          <div class="setting-section">
+            <div class="setting-name">Theme</div>
+            <div class="setting-contents">
+              <div id="themeSelection">
+                <div class="theme auto">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M8 15A7 7 0 1 0 8 1zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16"/>
+                  </svg>
+                  <span>Auto</span>
+                </div>
+                <div class="theme light">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="theme-icon-outline" viewBox="0 0 16 16">
+                    <path d="M8 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6m0 1a4 4 0 1 0 0-8 4 4 0 0 0 0 8M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
+                  </svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="theme-icon-fill" viewBox="0 0 16 16">
+                    <path d="M12 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
+                  </svg>
+                  <span>Light</span>
+                </div>
+                <div class="theme dark">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="theme-icon-outline" viewBox="0 0 16 16">
+                    <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278M4.858 1.311A7.27 7.27 0 0 0 1.025 7.71c0 4.02 3.279 7.276 7.319 7.276a7.32 7.32 0 0 0 5.205-2.162q-.506.063-1.029.063c-4.61 0-8.343-3.714-8.343-8.29 0-1.167.242-2.278.681-3.286"/>
+                  </svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="theme-icon-fill" viewBox="0 0 16 16">
+                    <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/>
+                  </svg>
+                  <span>Dark</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <div class="setting-item">
           <div class="setting-name">File Index</div>
+          <div>
+            <span id="indexAmount">0</span><span> files indexed. </span>
+            <span id="diskSpaceUsed">0</span><span> MB disk space used.</span>
+          </div>
+          <div id="indexFileLocation">Location: <span></span></div>
           <div class="setting-contents">
             <div class="diskUsageInfo">
               <div id="diskUsageRatioChart"></div>
-              <div>
-                <span id="indexAmount">0</span><span> files indexed. </span>
-                <span id="diskSpaceUsed">0</span><span> MB disk space used.</span>
-              </div>
+              <button id="pauseIndex">Pause Index</button>
+              <button id="clearIndex">Clear Index</button>
             </div>
             <div class="indexSelectionRow">
               <div class="indexSelections">
@@ -123,6 +141,30 @@
           </div>
         </div><!-- end of Index -->
         
+        <div class="setting-item">
+          <div class="setting-contents">
+            <label class="switch">
+              <input id="caseSensitive" type="checkbox" />
+              <span class="switch-slider"></span>
+              <span class="switch-text">Case sensitive</span>
+            </label>
+          </div>
+          <div class="setting-contents">
+            <label class="switch">
+              <input id="searchFileNames" type="checkbox" />
+              <span class="switch-slider"></span>
+              <span class="switch-text">Search file names</span>
+            </label>
+          </div>
+          <div class="setting-contents">
+            <div class="range-slider">
+              <input id="maximumResults" type="range" min="100" max="1000" step="100" value="500" />
+              <span id="maximumResultsValue" class="range-value">500</span>
+              <span class="switch-text">Maximum Results</span>
+            </div>
+          </div>
+        </div>
+
         <div class="setting-item">
           <div class="setting-name">Hotkeys</div>
           <div class="setting-contents">
@@ -169,11 +211,26 @@
               <path d="M21,9c-0.6,0-1,0.4-1,1v3H4v-3c0-0.6-0.4-1-1-1s-1,0.4-1,1v4c0,0.6,0.4,1,1,1h18c0.6,0,1-0.4,1-1v-4C22,9.4,21.6,9,21,9z" />
             </svg>
           </span>
-          <div class="shortcutKeys-desc">to Open</div>
+          <div class="shortcutKeys-desc">to <b>Open</b></div>
         </div>
         <div class="shortcutKeys">
           <span>ESC</span>
-          <div class="shortcutKeys-desc">to Close (Minimize to Tray)</div>
+          <div class="shortcutKeys-desc">to <b>Close</b> (Minimize to Tray)</div>
+        </div>
+      </div>
+      <div class="welcome-introForSearch">
+        <div class="intro-item">
+          <b>Whole word match:</b> wrap a term in double quotes.<br>e.g. <code>"cat"</code> matches "cat" but not "category".
+        </div>
+        <div class="intro-item">
+          <b>Operators:</b> combine terms with
+          <span class="query-operator">AND</span>,
+          <span class="query-operator">OR</span> and
+          <span class="query-operator">NOT</span>.
+          <div>e.g. <code>apple <span class="query-operator">AND</span> pie</code>,
+            <code>apple <span class="query-operator">OR</span> pear</code>,
+            <code>apple <span class="query-operator">NOT</span> pie</code>
+          </div>
         </div>
       </div>
       <div class="welcome-actions">
