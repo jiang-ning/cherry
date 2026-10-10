@@ -295,6 +295,12 @@ button.primary:hover {
 
 .custom-select-options {
   display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  box-sizing: border-box;
   max-height: 200px;
   overflow-y: auto;
   padding: 4px 0;
@@ -555,7 +561,8 @@ button.primary:hover {
 .setting-item-container {
   display: flex;
   align-items: flex-start;
-  overflow: hidden;
+  /* Clip only the sliding panes so dropdown overlays can extend vertically. */
+  overflow-x: clip;
 }
 
 .setting-item {
