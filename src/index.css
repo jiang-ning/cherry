@@ -262,6 +262,7 @@ button.primary:hover {
   height: 32px;
   padding: 6px 14px;
   background: #eeeeee99;
+  border: 1px solid #ccc;
   border-radius: 30px;
   color: #333;
   font: inherit;

@@ -276,25 +276,13 @@ const languageList = document.getElementById('languageList');
 const languageTrigger = languageList.querySelector('.custom-select-trigger');
 const languageValue = languageList.querySelector('.custom-select-value');
 const languageOptions = [...languageList.querySelectorAll('.custom-select-options li')];
-let languageActive = -1;
-
-function highlightLanguage(index) {
-  languageActive = index;
-  languageOptions.forEach((item, i) => item.classList.toggle('active', i === index));
-  languageOptions[index]?.scrollIntoView({ block: 'nearest' });
-}
 
 function setLanguageOpen(open) {
   languageList.classList.toggle('open', open);
-  languageTrigger.setAttribute('aria-expanded', String(open));
-  if (open) highlightLanguage(languageOptions.findIndex((item) => item.classList.contains('selected')));
 }
 
 function selectLanguage(option) {
-  languageOptions.forEach((item) => {
-    item.classList.toggle('selected', item === option);
-    item.setAttribute('aria-selected', String(item === option));
-  });
+  languageOptions.forEach((item) => item.classList.toggle('selected', item === option));
   languageValue.textContent = option.textContent;
   setLanguageOpen(false);
   localStorage.setItem('language', option.dataset.value);
@@ -310,7 +298,7 @@ languageTrigger.addEventListener('click', () => {
 languageList.querySelector('.custom-select-options').addEventListener('click', (event) => {
   const option = event.target.closest('li');
   if (option) selectLanguage(option);
-})
+});
 document.addEventListener('click', (event) => {
   if (!languageList.contains(event.target)) setLanguageOpen(false);
 });
