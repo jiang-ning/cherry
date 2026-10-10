@@ -272,6 +272,62 @@ settingMenuItems.forEach((menuItem, index) => {
   menuItem.addEventListener('click', () => showSettingItem(index));
 });
 
+const languageList = document.getElementById('languageList');
+const languageTrigger = languageList.querySelector('.custom-select-trigger');
+const languageValue = languageList.querySelector('.custom-select-value');
+const languageOptions = [...languageList.querySelectorAll('.custom-select-options li')];
+let languageActive = -1;
+
+function highlightLanguage(index) {
+  languageActive = index;
+  languageOptions.forEach((item, i) => item.classList.toggle('active', i === index));
+  languageOptions[index]?.scrollIntoView({ block: 'nearest' });
+}
+
+function setLanguageOpen(open) {
+  languageList.classList.toggle('open', open);
+  languageTrigger.setAttribute('aria-expanded', String(open));
+  if (open) highlightLanguage(languageOptions.findIndex((item) => item.classList.contains('selected')));
+}
+
+function selectLanguage(option) {
+  languageOptions.forEach((item) => {
+    item.classList.toggle('selected', item === option);
+    item.setAttribute('aria-selected', String(item === option));
+  });
+  languageValue.textContent = option.textContent;
+  setLanguageOpen(false);
+  localStorage.setItem('language', option.dataset.value);
+}
+
+const savedLanguage = localStorage.getItem('language') || 'en';
+const savedLanguageOption = languageOptions.find((item) => item.dataset.value === savedLanguage);
+if (savedLanguageOption) selectLanguage(savedLanguageOption);
+
+languageTrigger.addEventListener('click', () => {
+  setLanguageOpen(!languageList.classList.contains('open'));
+});
+languageList.querySelector('.custom-select-options').addEventListener('click', (event) => {
+  const option = event.target.closest('li');
+  if (option) selectLanguage(option);
+})
+languageOptions.forEach((option) => {
+  option.addEventListener('click', () => selectLanguage(option));
+  option.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      selectLanguage(option);
+      languageTrigger.focus();
+    } else if (event.day === 'Escape') {
+      closeLanguageList();
+      languageTrigger.focus();
+    }
+  });
+});
+document.addEventListener('click', (event) => {
+  if (!languageList.contains(event.target)) setLanguageOpen(false);
+});
+
 const themeButtons = {
   system: document.querySelector('#themeSelection .theme.auto'),
   light: document.querySelector('#themeSelection .theme.light'),
