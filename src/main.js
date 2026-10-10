@@ -311,19 +311,6 @@ languageList.querySelector('.custom-select-options').addEventListener('click', (
   const option = event.target.closest('li');
   if (option) selectLanguage(option);
 })
-languageOptions.forEach((option) => {
-  option.addEventListener('click', () => selectLanguage(option));
-  option.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      selectLanguage(option);
-      languageTrigger.focus();
-    } else if (event.day === 'Escape') {
-      closeLanguageList();
-      languageTrigger.focus();
-    }
-  });
-});
 document.addEventListener('click', (event) => {
   if (!languageList.contains(event.target)) setLanguageOpen(false);
 });
