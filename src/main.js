@@ -286,6 +286,7 @@ function selectLanguage(option) {
   languageValue.textContent = option.textContent;
   setLanguageOpen(false);
   localStorage.setItem('language', option.dataset.value);
+  changeLanguage(option.dataset.value);
 }
 
 const savedLanguage = localStorage.getItem('language') || 'en';
@@ -302,6 +303,34 @@ languageList.querySelector('.custom-select-options').addEventListener('click', (
 document.addEventListener('click', (event) => {
   if (!languageList.contains(event.target)) setLanguageOpen(false);
 });
+
+function changeLanguage(languageCode) {
+  const elementsInnerText = document.querySelectorAll('[data-lang-innertext]');
+  const elementsTitle = document.querySelectorAll('[data-lang-title]');
+  const elementsPlaceholder = document.querySelectorAll('[data-lang-placeholder]');
+
+  if(languageCode === 'ar' || languageCode === 'pk') {
+    document.body.classList.add('ar');
+  }
+  if(languageCode !== 'ar' && languageCode !== 'pk' && document.body.classList.contains('ar')) {
+    document.body.classList.remove('ar');
+  }
+  
+  elementsInnerText.forEach(el => {
+    el.innerText = Languages[languageCode][el.dataset['langInnertext']] || el.innerText;
+  });
+  elementsTitle.forEach(el => {
+    el.title = Languages[languageCode][el.dataset['langTitle']] || el.title;
+  });
+  elementsPlaceholder.forEach(el => {
+    el.placeholder = Languages[languageCode][el.dataset['langPlaceholder']] || el.placeholder;
+  });
+}
+
+function translate(wordsCode) {
+  const currentLanguage = localStorage.getItem('language') || 'en';
+  return Languages[currentLanguage][wordsCode] || false;
+}
 
 const themeButtons = {
   system: document.querySelector('#themeSelection .theme.auto'),
