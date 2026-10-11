@@ -176,7 +176,7 @@ function renderTypeTags(results, items) {
     event.preventDefault();
     track.scrollLeft += event.deltaY;
   }, { passive: false });
-  
+
   track.addEventListener('click', (event) => {
     const tag = event.target.closest('.type-tag');
     if (!tag) return;
@@ -732,7 +732,7 @@ function renderHotkeyCombo() {
 }
 
 function isHotkeyRecording() {
-  return !settingsPanel.hidden && settingItems[1].classList.contains('active');
+  return !settingsPanel.hidden && settingItems[3].classList.contains('active');
 }
 
 // Capture phase so Escape is recorded instead of hiding the window.
