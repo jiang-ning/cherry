@@ -271,12 +271,12 @@ button.primary:hover {
 
 .custom-select-trigger:hover,
 .custom-select.open .custom-select-trigger {
-  background: #ffda6a;
-  border-color: #4a263866;
+  background: transparent;
 }
 
 .custom-select.open .custom-select-trigger {
   border-radius: 16px 16px 0 0 ;
+  border-bottom: none;
 }
 
 .custom-select-arrow {
@@ -294,7 +294,6 @@ button.primary:hover {
 }
 
 .custom-select-options {
-  display: none;
   position: absolute;
   top: 100%;
   left: 0;
@@ -309,10 +308,24 @@ button.primary:hover {
   border-top: 0;
   border-radius: 0 0 12px 12px;
   list-style: none;
+  visibility: hidden;
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 0.2s ease, opacity 0.2s ease, visibility 0s 0.2s;
 }
 
 .custom-select.open .custom-select-options {
-  display: block;
+  visibility: visible;
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 0.2s ease, opacity 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .custom-select-options,
+  .custom-select.open .custom-select-options {
+    transition: none;
+  }
 }
 
 .custom-select-options li {
@@ -476,6 +489,87 @@ button.primary:hover {
   padding: 10px 0;
 }
 
+.file-item[hidden] {
+  display: none;
+}
+
+.type-tags {
+  position: sticky;
+  top: -10px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: -10px 0 0;
+  padding: 10px 0 8px;
+  background-color: #fff;
+}
+
+.type-tags-track {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.type-tags-track::-webkit-scrollbar {
+  display: none;
+}
+
+.type-tags-arrow {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #666;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.type-tags-arrow:hover {
+  background: #eee;
+  color: #333;
+}
+
+.type-tags-arrow[hidden] {
+  display: none;
+}
+
+.type-tag {
+  flex: none;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  background: transparent;
+  color: #666;
+  font: inherit;
+  font-size: 12px;
+  line-height: 14px;
+  cursor: pointer;
+}
+
+.type-tag:hover {
+  border-color: #999;
+  color: #333;
+}
+
+.type-tag.active {
+  background: #ffda6a;
+  border-color: #ffda6a;
+  color: #4a2638;
+}
+
+.type-tag-count {
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
 /* Animate only when the list first appears, not on every keystroke. */
 #fileList.reveal .file-item {
   animation: result-in 200ms ease-out both;
@@ -587,16 +681,21 @@ button.primary:hover {
 
 .setting-section {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  margin: 12px;
+  margin: 12px 12px 0;
 }
 
 .setting-section-col {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  align-items: center;
+}
+
+.setting-section-col > .setting-section {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
 }
 
 .setting-name {
@@ -725,7 +824,8 @@ button.primary:hover {
 
 .theme.light:hover,
 .theme.light.active {
-  color: #ffda6a;
+  color: #333;
+  background-color: #ffe28a;
 }
 
 .theme.dark:hover,
@@ -884,6 +984,29 @@ button.primary:hover {
   }
   .file-name {
     color: #fff;
+  }
+  .type-tags {
+    background-color: #1e1e1e;
+  }
+  .type-tags-arrow {
+    color: #aaa;
+  }
+  .type-tags-arrow:hover {
+    background: #333;
+    color: #ddd;
+  }
+  .type-tag {
+    border-color: #555;
+    color: #aaa;
+  }
+  .type-tag:hover {
+    border-color: #999;
+    color: #ddd;
+  }
+  .type-tag.active {
+    background: #ffda6a;
+    border-color: #ffda6a;
+    color: #4a2638;
   }
   .file-modified {
     color: #aaa;

@@ -117,9 +117,83 @@ function updateKeywordHighlight() {
   keywordHighlight.scrollLeft = keywordInput.scrollLeft;
 }
 
+function fileType(name) {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1).toLowerCase() : 'other';
+}
+
+function renderTypeTags(results, items) {
+  const counts = new Map();
+  for (const file of results) {
+    const type = fileType(file.name);
+    counts.set(type, (counts.get(type) ?? 0) + 1);
+  }
+  const bar = document.createElement('div');
+  bar.className = 'type-tags';
+  const makeTag = (label, count, type) => {
+    const tag = document.createElement('button');
+    tag.type = 'button';
+    tag.className = 'type-tag';
+    tag.dataset.type = type;
+    tag.textContent = `${label}`;
+    const counter = document.createElement('span');
+    counter.className = 'type-tag-count';
+    counter.textContent = count;
+    tag.append(counter);
+    return tag;
+  };
+  const track = document.createElement('div');
+  track.className = 'type-tags-track';
+  const allTag = makeTag('All', results.length, '');
+  allTag.classList.add('active');
+  track.append(allTag);
+  [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .forEach(([type, count]) => track.append(makeTag(type, count, type)));
+  
+  const makeArrow = (direction) => {
+    const arrow = document.createElement('button');
+    arrow.type = 'button';
+    arrow.className = `type-tags-arrow ${direction}`;
+    arrow.textContent = direction === 'left' ? '<' : '>';
+    arrow.hidden = true;
+    arrow.addEventListener('click', () => {
+      const step = track.clientWidth * 0.7;
+      track.scrollBy({ left: direction === 'left' ? -step : step, behavior: 'smooth' });
+    });
+    return arrow;
+  };
+  const leftArrow = makeArrow('left');
+  const rightArrow = makeArrow('right');
+  const updateArrows = () => {
+    leftArrow.hidden = track.scrollLeft <= 0;
+    // 1px tolerance for fractional scroll widths.
+    rightArrow.hidden = track.scrollLeft + track.clientWidth >= track.scrollWidth - 1;
+  };
+  track.addEventListener('scroll', updateArrows);
+  new ResizeObserver(updateArrows).observe(track);
+  track.addEventListener('wheel', (event) => {
+    if (!event.deltaY || track.scrollWidth <= track.clientWidth) return;
+    event.preventDefault();
+    track.scrollLeft += event.deltaY;
+  }, { passive: false });
+  
+  track.addEventListener('click', (event) => {
+    const tag = event.target.closest('.type-tag');
+    if (!tag) return;
+    // Clicking the active type tag again resets to all.
+    const type = tag.classList.contains('active') ? '' : tag.dataset.type;
+    for (const t of track.children) t.classList.toggle('active', t.dataset.type === type);
+    for (const item of items) item.hidden = Boolean(type) && item.dataset.type !== type;
+    fileList.scrollTop = 0;
+  });
+  bar.append(leftArrow, track, rightArrow);
+  return bar;
+}
+
 function renderFile(file) {
   const item = document.createElement('div');
   item.className = 'file-item';
+  item.dataset.type = fileType(file.name);
 
   const header = document.createElement('div');
   header.className = 'file-header';
@@ -172,20 +246,21 @@ async function runSearch() {
 
     const details = [`${results.length} matched files`];
     if (limitReached) details.push(`showing the ${results.length} most recently modified`);
-    showResults(details.join(` • `), results.map(renderFile));
+    const items = results.map(renderFile);
+    showResults(details.join(` • `), items, items.length ? renderTypeTags(results, items) : null);
   } catch (error) {
     if (searchId === currentSearchId) showResults(`Search failed: ${error.message}`, []);
   }
 }
 
 // Swap content in one step; the previous list stays visible until then, so the window never collapses between searches.
-function showResults(summary, items) {
+function showResults(summary, items, typeTags = null) {
   // Match counts are not useful to users, so no status line is shown.
   // statusLine = document.createElement('div');
   // statusLine.className = 'search-status';
   // statusLine.textContent = summary;
   // fileList.replaceChildren(statusLine, ...items);
-  fileList.replaceChildren(...items);
+  fileList.replaceChildren(...(typeTags ? [typeTags] : []), ...items);
   if (!items.length) {
     fileList.hidden = true;
     return;
