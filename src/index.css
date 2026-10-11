@@ -585,8 +585,36 @@ button.primary:hover {
   }
 }
 
+.setting-section {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px;
+}
+
+.setting-section-col {
+  display: flex;
+  flex-direction: column;
+}
+
 .setting-name {
   font-weight: 600;
+}
+
+.setting-contents {
+  margin: 0 10px;
+  align-self: flex-start;
+  text-align: left;
+}
+
+.setting-item.general {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
 }
 
 .diskUsageInfo {
