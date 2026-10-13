@@ -29,6 +29,7 @@ const matchColumns = `
 class FileIndex {
   constructor(databasePath) {
     this.db = new Database(databasePath);
+    this.maxResults = MAX_RESULTS;
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this.db.exec(`
@@ -96,6 +97,19 @@ class FileIndex {
     this.markSkippedStatement = this.db.prepare(
       `UPDATE files SET content = '', state = ${STATE_SKIPPED} WHERE id = ?`
     );
+    this.requeueSkippedStatement = this.db.prepare(
+      `UPDATE files SET state = ${STATE_PENDING} WHERE state = ${STATE_SKIPPED} AND size > @oldBytes AND size <= @newBytes`
+    );
+    this.skipOversizedStatement = this.db.prepare(
+      `UPDATE files SET content = '', state = ${STATE_SKIPPED} WHERE state != ${STATE_SKIPPED} AND size > @newBytes`
+    );
+    this.maxFileBytesStatement = this.db.prepare("SELECT value FROM meta WHERE key = 'max_file_bytes'");
+    this.allFilesStatement = this.db.prepare(
+      'SELECT path, modified_ms AS modifiedMs FROM files ORDER BY modified_ms DESC'
+    );
+    this.setMaxFileBytesStatement = this.db.prepare(
+      "INSERT OR REPLACE INTO meta(key, value) VALUES ('max_file_bytes', ?)"
+    );
     this.statsStatement = this.db.prepare(`
       SELECT
         coalesce(sum(state = ${STATE_INDEXED}), 0) AS indexed,
@@ -150,14 +164,94 @@ class FileIndex {
     this.markSkippedStatement.run(id);
   }
 
+  // Re-queue files previously skipped for size, or drops files now over the limit.
+  applyMaxFileSize(newBytes) {
+    // Indexes built before this setting existed may have skipped files at any size.
+    const oldBytes = Number(this.maxFileBytesStatement.get()?.value ?? 0);
+    if (newBytes > oldBytes) this.requeueSkippedStatement.run({ oldBytes, newBytes });
+    else if (newBytes < oldBytes) this.skipOversizedStatement.run({ newBytes });
+    this.setMaxFileBytesStatement.run(String(newBytes));
+  }
+
   stats() {
     return this.statsStatement.get();
   }
 
-  search(rawQuery) {
+  search(rawQuery, caseSensitive = false, searchFileNames = false) {
+    const content = this.searchContent(rawQuery, caseSensitive);
+    if (!searchFileNames) return content;
+    const names = this.searchNames(rawQuery, caseSensitive);
+    if (!names.length) return content;
+    const seen = new Set(content.results.map((result) => result.path));
+    const merged = [...content.results, ...names.filter((result) => !seen.has(result.path))]
+      .sort((left, right) => right.modified - left.modified);
+    return {
+      results: merged.slice(0, this.maxResults),
+      limitReached: content.limitReached || merged.length > this.maxResults
+    };
+  }
+
+  searchNames(rawQuery, caseSensitive) {
+    const booleanQuery = parseBooleanQuery(rawQuery);
+    if (booleanQuery?.invalid) return [];
+    let expression = booleanQuery?.expression;
+    if (!expression) {
+      const { query, wholeWord } = parseSearchQuery(rawQuery);
+      if (!query) return [];
+      expression = { type: 'term', query, wholeWord };
+    }
+
+    const none = { matched: false, highlights: [] };
+    const evaluate = (node, name) => {
+      if (node.type === 'term') {
+        const highlights = findHighlights(name, node.query, node.wholeWord, caseSensitive);
+        return highlights.length ? { matched: true, highlights } : none;
+      }
+      const left = evaluate(node.left, name);
+      const right = evaluate(node.right, name);
+      if (node.type === 'and') {
+        return left.matched && right.matched
+          ? { matched: true, highlights: [...left.highlights, ...right.highlights] }
+          : none;
+      }
+      if (node.type === 'andNot') return left.matched && !right.matched ? left : none;
+      return {
+        matched: left.matched || right.matched,
+        highlights: [...left.highlights, ...right.highlights]
+      };
+    };
+
+    const results = [];
+    for (const file of this.allFilesStatement.iterate()) {
+      const name = path.basename(file.path);
+      const result = evaluate(expression, name);
+      if (!result.matched) continue;
+      const highlights = [];
+      for (const match of result.highlights.sort((left, right) => left.start - right.start)) {
+        const previous = highlights.at(-1);
+        if (previous && match.start < previous.start + previous.length) {
+          previous.length = Math.max(previous.length, match.start + match.length - previous.start);
+        } else {
+          highlights.push({ ...match });
+        }
+      }
+      results.push({
+        path: file.path,
+        name,
+        modified: file.modifiedMs,
+        matchCount: highlights.length,
+        preview: name,
+        highlights
+      });
+      if (results.length > this.maxResults) break;
+    }
+    return results;
+  }
+
+  searchContent(rawQuery, caseSensitive = false) {
     const booleanQuery = parseBooleanQuery(rawQuery);
     if (booleanQuery?.invalid) return { results: [], limitReached: false };
-    if (booleanQuery) return this.searchBoolean(booleanQuery.expression);
+    if (booleanQuery) return this.searchBoolean(booleanQuery.expression, caseSensitive);
 
     const { query, wholeWord } = parseSearchQuery(rawQuery);
     if (!query) return { results: [], limitReached: false };
@@ -172,36 +266,39 @@ class FileIndex {
 
     const rows = [];
     for (const row of statement.iterate(searchParams)) {
-      const matches = wholeWord ? findHighlights(row.content, query, true) : null;
-      if (wholeWord && !matches.length) continue;
+      // FTS and LIKE ignore case, so exact matching is verified here.
+      const exact = wholeWord || caseSensitive;
+      const matches = exact ? findHighlights(row.content, query, wholeWord, caseSensitive) : null;
+      if (exact && !matches.length) continue;
       rows.push({ row, matches });
-      if (rows.length > MAX_RESULTS) break;
+      if (rows.length > this.maxResults) break;
     }
 
-    const results = rows.slice(0, MAX_RESULTS).map(({ row, matches }) => {
-      const matchPosition = wholeWord ? matches[0].start + 1 : row.windowStart;
-      const windowStart = wholeWord ? Math.max(1, matchPosition - PREVIEW_BEFORE) : row.windowStart;
-      const window = wholeWord
+    const exact = wholeWord || caseSensitive;
+    const results = rows.slice(0, this.maxResults).map(({ row, matches }) => {
+      const matchPosition = exact ? matches[0].start + 1 : row.windowStart;
+      const windowStart = exact ? Math.max(1, matchPosition - PREVIEW_BEFORE) : row.windowStart;
+      const window = exact
         ? row.content.slice(windowStart - 1, windowStart - 1 + PREVIEW_LENGTH + query.length)
         : row.window;
       const prefix = windowStart > 1 ? '…' : '';
       const suffix = windowStart - 1 + [...window].length < row.textLength ? '…' : '';
-      const highlights = (wholeWord ? findHighlights(window, query, true) : findHighlights(window, query))
+      const highlights = findHighlights(window, query, wholeWord, caseSensitive)
         .map(({ start, length }) => ({ start: start + prefix.length, length }));
       return {
         path: row.path,
         name: path.basename(row.path),
         modified: row.modifiedMs,
-        matchCount: wholeWord ? matches.length : Math.max(row.matchCount, highlights.length, 1),
+        matchCount: exact ? matches.length : Math.max(row.matchCount, highlights.length, 1),
         preview: `${prefix}${window}${suffix}`,
         highlights
       };
     });
 
-    return { results, limitReached: rows.length > MAX_RESULTS };
+    return { results, limitReached: rows.length > this.maxResults };
   }
 
-  searchBoolean(expression) {
+  searchBoolean(expression, caseSensitive = false) {
     const terms = [];
     const collectTerms = (node) => {
       if (node.type === 'term') {
@@ -226,7 +323,8 @@ class FileIndex {
         : { ...params, like: `%${term.query.replace(/[\\%_]/g, '\\$&')}%` };
       const matches = new Set();
       for (const row of statement.iterate(searchParams)) {
-        if (term.wholeWord && !findHighlights(row.content, term.query, true).length) continue;
+        if ((term.wholeWord || caseSensitive)
+          && !findHighlights(row.content, term.query, term.wholeWord, caseSensitive).length) continue;
         matches.add(row.path);
         files.set(row.path, row);
       }
@@ -261,8 +359,8 @@ class FileIndex {
       if (result.matched) matchedFiles.push({ row, terms: result.terms });
     }
     matchedFiles.sort((left, right) => right.row.modifiedMs - left.row.modifiedMs);
-    const results = matchedFiles.slice(0, MAX_RESULTS).map(({ row, terms: matchedTerms }) => {
-      const matches = matchedTerms.flatMap((term) => findHighlights(row.content, term.query, term.wholeWord))
+    const results = matchedFiles.slice(0, this.maxResults).map(({ row, terms: matchedTerms }) => {
+      const matches = matchedTerms.flatMap((term) => findHighlights(row.content, term.query, term.wholeWord, caseSensitive))
         .sort((left, right) => left.start - right.start);
       const highlights = [];
       for (const match of matches) {
@@ -291,7 +389,7 @@ class FileIndex {
       };
     });
 
-    return { results, limitReached: matchedFiles.length > MAX_RESULTS };
+    return { results, limitReached: matchedFiles.length > this.maxResults };
   };
 
   close() {

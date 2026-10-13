@@ -1,8 +1,10 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const MAX_DOCUMENT_BYTES = 50 * 1024 * 1024;
+const MB = 1024 * 1024;
+const DEFAULT_MAX_FILE_SIZE_MB = 50;
+const MIN_FILE_SIZE_MB = 10;
+const MAX_FILE_SIZE_MB = 200;
 const MAX_INDEXED_CHARS = 2 * 1024 * 1024;
 const TEXT_EXTENSIONS = new Set([
   '.txt', '.md', '.markdown', '.csv', '.tsv', '.log', '.json', '.xml', '.html',
@@ -46,17 +48,15 @@ async function readDocumentText(filePath) {
 }
 
 // Returns searchable text, or null when the file is empty, too large, binary, or unsupported.
-async function extractText(filePath, size) {
-  if (size === 0) return null;
+async function extractText(filePath, size, maxFileSizeMB = DEFAULT_MAX_FILE_SIZE_MB) {
+  if (size === 0 || size > maxFileSizeMB * MB) return null;
   const extension = path.extname(filePath).toLowerCase();
   let raw;
 
   if (DOCUMENT_EXTENSIONS.has(extension)) {
-    if (size > MAX_DOCUMENT_BYTES) return null;
     raw = await readDocumentText(filePath);
   } else {
     // User-added extensions are read as plain text; binary files are rejected below.
-    if (size > MAX_FILE_BYTES) return null;
     const buffer = await fs.readFile(filePath);
     if (buffer.includes(0)) return null;
     raw = buffer.toString('utf8');
@@ -141,17 +141,22 @@ function parseBooleanQuery(rawQuery) {
   }
 }
 
-function findHighlights(text, query, wholeWord = false) {
+function findHighlights(text, query, wholeWord = false, caseSensitive = false) {
+  const flags = caseSensitive ? 'gu' : 'giu';
   const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = wholeWord
-    ? new RegExp(`(?<![\\p{L}\\p{N}_])${escapedQuery}(?![\\p{L}\\p{N}_])`, 'giu')
-    : new RegExp(escapedQuery, 'giu');
+    ? new RegExp(`(?<![\\p{L}\\p{N}_])${escapedQuery}(?![\\p{L}\\p{N}_])`, flags)
+    : new RegExp(escapedQuery, flags);
   return [...text.matchAll(pattern)].map((match) => ({ start: match.index, length: match[0].length }));
 }
 
 module.exports = {
   DEFAULT_EXCLUDED_FOLDERS,
   DEFAULT_EXTENSIONS,
+  DEFAULT_MAX_FILE_SIZE_MB,
+  MIN_FILE_SIZE_MB,
+  MAX_FILE_SIZE_MB,
+  MB,
   extractText,
   findHighlights,
   isSupportedFile,

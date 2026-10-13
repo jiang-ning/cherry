@@ -41,7 +41,6 @@
         <div class="setting-nav">
           <span class="setting-menu-item active">General</span>
           <span class="setting-menu-item">Index</span>
-          <span class="setting-menu-item">Search</span>
           <span class="setting-menu-item">Hotkeys</span>
           <span class="setting-menu-seperator">|</span>
           <span id="btnWelcomeScreen" class="setting-menu-item">Welcome</span>
@@ -50,6 +49,7 @@
       <div class="setting-item-container">
         
         <div class="setting-item general active">
+          <div class="general-row general-row-top">
           <div class="setting-section-col">
             <div class="setting-section">
               <div class="setting-name">Language:</div>
@@ -107,10 +107,6 @@
                 </div>
               </div>
             </div><!-- end of theme selection -->
-            <div class="setting-section">
-              <div class="setting-name">Version:</div>
-              <div class="setting-contents">1.0.0</div>
-            </div>
           </div>
           <div class="setting-section">
             <div class="setting-contents">
@@ -121,16 +117,60 @@
               </label>
             </div>
           </div><!-- end of launch at startup -->
+          </div><!-- end of row 1 -->
+
+          <div class="general-row general-row-search">
+          <div class="setting-section">
+            <div class="setting-name">Search:</div>
+            <div class="setting-contents search-options">
+              <label class="switch">
+                <input id="caseSensitive" type="checkbox" />
+                <span class="switch-slider"></span>
+                <span class="switch-text">Case sensitive</span>
+              </label>
+              <label class="switch">
+                <input id="searchFileNames" type="checkbox" />
+                <span class="switch-slider"></span>
+                <span class="switch-text">Search file names</span>
+              </label>
+              <div class="range-slider">
+                <input id="maximumResults" type="range" min="100" max="1000" step="100" value="500" />
+                <div>
+                  <span id="maximumResultsValue" class="range-value">500</span>
+                  <span class="switch-text">maximum search results</span>
+                </div>
+              </div><!-- end of max result range -->
+            </div>
+          </div>
+          </div><!-- end of row 2 -->
+
+          <div class="general-row">
+            <div class="setting-section">
+              <div class="setting-name">Version:</div>
+              <div class="setting-contents">1.0.0</div>
+            </div>
+          </div><!-- end of row 3 -->
         </div>
 
         <div class="setting-item">
-          <div class="setting-name">File Index</div>
-          <div>
-            <span id="indexAmount">0</span><span> files indexed. </span>
-            <span id="diskSpaceUsed">0</span><span> MB disk space used.</span>
-          </div>
-          <div id="indexFileLocation">Location: <span></span></div>
+
           <div class="setting-contents">
+            <div class="indexUsage-wrapper">
+
+              <div class="indexUsageInfo">
+                <div class="setting-name">File Index</div>
+                <div class="range-slider">
+                  <div>
+                    <span id="maximumSizeValue" class="range-value">50</span>
+                    <span class="switch-text">MB max size limited for a single file index</span>
+                  </div>
+                  <input id="maximumSize" type="range" min="10" max="200" step="10" value="50" />
+                </div>
+              </div>
+              <span id="indexAmount">0</span><span> files indexed. </span>
+              <span id="diskSpaceUsed">0</span><span> MB disk space used.</span>
+              <div id="indexFileLocation">Location: <span></span></div>
+            </div>
             <div class="diskUsageInfo">
               <div id="diskUsageRatioChart"></div>
               <button id="pauseIndex">Pause Index</button>
@@ -170,33 +210,8 @@
             </div>
           </div>
         </div><!-- end of Index -->
-        
-        <div class="setting-item">
-          <div class="setting-contents">
-            <label class="switch">
-              <input id="caseSensitive" type="checkbox" />
-              <span class="switch-slider"></span>
-              <span class="switch-text">Case sensitive</span>
-            </label>
-          </div>
-          <div class="setting-contents">
-            <label class="switch">
-              <input id="searchFileNames" type="checkbox" />
-              <span class="switch-slider"></span>
-              <span class="switch-text">Search file names</span>
-            </label>
-          </div>
-          <div class="setting-contents">
-            <div class="range-slider">
-              <input id="maximumResults" type="range" min="100" max="1000" step="100" value="500" />
-              <span id="maximumResultsValue" class="range-value">500</span>
-              <span class="switch-text">Maximum Results</span>
-            </div>
-          </div>
-        </div>
 
         <div class="setting-item">
-          <div class="setting-name">Hotkeys</div>
           <div class="setting-contents">
             <div id="hotkeys" class="shortcutKeys">
               <span>Ctrl</span> + 
