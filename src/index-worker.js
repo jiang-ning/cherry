@@ -2,7 +2,7 @@ const { parentPort, workerData } = require('node:worker_threads');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { FileIndex } = require('./file-index');
-const { extractText, isSupportedFile, isIgnoredDirectory } = require('./search');
+const { MB, extractText, isSupportedFile, isIgnoredDirectory } = require('./search');
 
 const RESCAN_INTERVAL_MS = 10 * 60 * 1000;
 const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -13,6 +13,8 @@ const index = new FileIndex(workerData.databasePath);
 let roots = workerData.roots;
 let extensions = new Set(workerData.extensions);
 let excludedFolders = new Set(workerData.excludedFolders.map((name) => name.toLowerCase()));
+let maxFileSizeMB = workerData.maxFileSizeMB;
+index.applyMaxFileSize(maxFileSizeMB * MB);
 let rescanRequested = false;
 let wakeScan = null;
 let idle = false;
@@ -155,7 +157,7 @@ async function indexLoop() {
       }
 
       try {
-        const text = await extractText(file.path, file.size);
+        const text = await extractText(file.path, file.size, maxFileSizeMB);
         if (text === null) index.markSkipped(file.id);
         else index.saveContent(file, text);
       } catch {
@@ -203,9 +205,18 @@ parentPort.on('message', (message) => {
     return;
   }
 
+  if (message.type === 'set-max-file-size') {
+    maxFileSizeMB = message.maxFileSizeMB;
+    index.applyMaxFileSize(maxFileSizeMB * MB);
+    catchUp = true;
+    postStatus(true);
+    return;
+  }
+
   if (message.type === 'search') {
     try {
-      const { results, limitReached } = index.search(message.query);
+      index.maxResults = message.maxResults;
+      const { results, limitReached } = index.search(message.query, message.caseSensitive === true, message.searchFileNames === true);
       parentPort.postMessage({
         type: 'search-response',
         requestId: message.requestId,

@@ -4,7 +4,9 @@ const path = require('path');
 const fs = require('fs/promises');
 const { randomUUID } = require('crypto');
 const { Worker } = require('worker_threads');
-const { DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS } = require('./search');
+const { 
+  DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS, DEFAULT_MAX_FILE_SIZE_MB, MIN_FILE_SIZE_MB, MAX_FILE_SIZE_MB
+} = require('./search');
 
 const IDLE_THRESHOLD_SECONDS = 60;
 const IMAGES_DIR = path.join(__dirname, 'images');
@@ -17,11 +19,15 @@ let indexStatus = null;
 let indexPaths = [];
 let indexExtensions = [];
 let excludedFolders = [];
+let maxFileSizeMB = DEFAULT_MAX_FILE_SIZE_MB;
 const pendingSearches = new Map();
 
 const LOGIN_ARGS = ['--hidden'];
 let startHidden = process.argv.includes('--hidden');
 let launchAtStartup = false;
+let caseSensitive = false;
+let searchFileNames = false;
+let maxResults = 500;
 
 const createWindow = () => {
   const show = !startHidden;
@@ -142,7 +148,7 @@ ipcMain.handle('search:start', (_event, keyword) => {
   const requestId = randomUUID();
   return new Promise((resolve, reject) => {
     pendingSearches.set(requestId, { resolve, reject });
-    indexWorker.postMessage({ type: 'search', requestId, query });
+    indexWorker.postMessage({ type: 'search', requestId, query, caseSensitive, searchFileNames, maxResults });
   });
 });
 
@@ -209,6 +215,21 @@ ipcMain.handle('excluded-folders:remove', (_event, name) => {
   return applyExcludedFolders(excludedFolders.filter((item) => item !== name));
 });
 
+ipcMain.handle('max-file-size:get', () => maxFileSizeMB);
+
+ipcMain.handle('max-file-size:set', async (_event, value) => {
+  if (!isValidMaxFileSize(value)) throw new Error('Invalid maximum file size.');
+  if (value === maxFileSizeMB) return maxFileSizeMB;
+  maxFileSizeMB = value;
+  await saveSettings();
+  indexWorker?.postMessage({ type: 'set-max-file-size', maxFileSizeMB });
+  return maxFileSizeMB;
+});
+
+function isValidMaxFileSize(value) {
+  return Number.isInteger(value) && value >= MIN_FILE_SIZE_MB && value <= MAX_FILE_SIZE_MB;
+}
+
 function normalizeFolderName(input) {
   if (typeof input !== 'string') return null;
   const name = input.trim();
@@ -235,6 +256,37 @@ ipcMain.handle('launch-at-startup:set', async (_event, enabled) => {
   await saveSettings();
   return launchAtStartup;
 });
+
+ipcMain.handle('case-sensitive:get', () => caseSensitive);
+
+ipcMain.handle('case-sensitive:set', async (_event, enabled) => {
+  if (typeof enabled !== 'boolean') throw new Error('Invalid value.');
+  caseSensitive = enabled;
+  await saveSettings();
+  return caseSensitive;
+});
+
+ipcMain.handle('search-file-names:get', () => searchFileNames);
+
+ipcMain.handle('search-file-names:set', async (_event, enabled) => {
+  if (typeof enabled !== 'boolean') throw new Error('Invalid value.');
+  searchFileNames = enabled;
+  await saveSettings();
+  return searchFileNames;
+});
+
+ipcMain.handle('max-results:get', () => maxResults);
+
+ipcMain.handle('max-results:set', async (_event, value) => {
+  if (!isValidMaxResults(value)) throw new Error('Invalid maximum results.');
+  maxResults = value;
+  await saveSettings();
+  return maxResults;
+});
+
+function isValidMaxResults(value) {
+  return Number.isInteger(value) && value >= 100 && value <= 1000;
+}
 
 ipcMain.handle('theme:get', () => theme);
 
@@ -287,10 +339,14 @@ async function loadSettings() {
   if (typeof settings.hotkey === 'string' && /^[\w+]+$/.test(settings.hotkey)) hotkey = settings.hotkey;
   if (THEMES.includes(settings.theme)) theme = settings.theme;
   if (typeof settings.launchAtStartup === 'boolean') launchAtStartup = settings.launchAtStartup;
+  if (typeof settings.caseSensitive === 'boolean') caseSensitive = settings.caseSensitive;
+  if (typeof settings.searchFileNames === 'boolean') searchFileNames = settings.searchFileNames;
+  if (isValidMaxResults(settings.maxResults)) maxResults = settings.maxResults;
+  if (isValidMaxFileSize(settings.maxFileSizeMB)) maxFileSizeMB = settings.maxFileSizeMB;
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme, launchAtStartup }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
@@ -359,7 +415,8 @@ function startIndexWorker() {
       databasePath: getDatabasePath(),
       roots: indexPaths,
       extensions: indexExtensions,
-      excludedFolders
+      excludedFolders,
+      maxFileSizeMB
     }
   });
   indexWorker.on('message', handleWorkerMessage);

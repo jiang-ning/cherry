@@ -424,13 +424,56 @@ window.electronAPI.getTheme().then(renderTheme);
 
 const maximumResults = document.getElementById('maximumResults');
 const maximumResultsValue = document.getElementById('maximumResultsValue');
+let savedMaximumResults = Number(maximumResults.value);
 function renderMaximumResults() {
   const { min, max, value } = maximumResults;
   maximumResults.style.setProperty('--fill', `${((value - min) / (max - min)) * 100}%`);
   maximumResultsValue.textContent = value;
 }
 maximumResults.addEventListener('input', renderMaximumResults);
+// Persist on release only, so dragging doesn't re-run the search on every step.
+maximumResults.addEventListener('change', async () => {
+  try {
+    savedMaximumResults = await window.electronAPI.setMaxResults(Number(maximumResults.value));
+    runSearch();
+  } catch {
+    // Keep the slider in sync with the limit that is actually in effect.
+  }
+  maximumResults.value = savedMaximumResults;
+  renderMaximumResults();
+});
+window.electronAPI?.getMaxResults().then((value) => {
+  savedMaximumResults = value;
+  maximumResults.value = value;
+  renderMaximumResults();
+});
 renderMaximumResults();
+
+const maximumSize = document.getElementById('maximumSize');
+const maximumSizeValues = document.getElementById('maximumSizeValue');
+let savedMaximumSize = Number(maximumSize.value);
+function renderMaximumSize() {
+  const { min, max, value } = maximumSize;
+  maximumSize.style.setProperty('--fill', `${((value - min) / (max - min)) * 100}%`);
+  maximumSizeValues.textContent = value;
+}
+maximumSize.addEventListener('input', renderMaximumSize);
+// Persist on release only, so dragging doesn't re-queue the index on every step.
+maximumSize.addEventListener('change', async () => {
+  try {
+    savedMaximumSize = await window.electronAPI.setMaxFileSize(Number(maximumSize.value));
+  } catch {
+    // Keep the slider in sync with the limit that is actually in effect.
+  }
+  maximumSize.value = savedMaximumSize;
+  renderMaximumSize();
+});
+window.electronAPI?.getMaxFileSize().then((sizeMB) => {
+  savedMaximumSize = sizeMB;
+  maximumSize.value = sizeMB;
+  renderMaximumSize();
+});
+renderMaximumSize();
 
 const launchAtStartup = document.getElementById('launchAtStartup');
 window.electronAPI.getLaunchAtStartup().then((enabled) => { launchAtStartup.checked = enabled; });
@@ -439,6 +482,28 @@ launchAtStartup.addEventListener('change', async () => {
     launchAtStartup.checked = await window.electronAPI.setLaunchAtStartup(launchAtStartup.checked);
   } catch {
     launchAtStartup.checked = !launchAtStartup.checked;
+  }
+});
+
+const caseSensitive = document.getElementById('caseSensitive');
+window.electronAPI?.getCaseSensitive().then((enabled) => { caseSensitive.checked = enabled; });
+caseSensitive.addEventListener('change', async () => {
+  try {
+    caseSensitive.checked = await window.electronAPI.setCaseSensitive(caseSensitive.checked);
+    runSearch();
+  } catch {
+    caseSensitive.checked = !caseSensitive.checked;
+  }
+});
+
+const searchFileNames = document.getElementById('searchFileNames');
+window.electronAPI?.getSearchFileNames().then((enabled) => { searchFileNames.checked = enabled; });
+searchFileNames.addEventListener('change', async () => {
+  try {
+    searchFileNames.checked = await window.electronAPI.setSearchFileNames(searchFileNames.checked);
+    runSearch();
+  } catch {
+    searchFileNames.checked = !searchFileNames.checked;
   }
 });
 
@@ -732,7 +797,7 @@ function renderHotkeyCombo() {
 }
 
 function isHotkeyRecording() {
-  return !settingsPanel.hidden && settingItems[3].classList.contains('active');
+  return !settingsPanel.hidden && hotkeys.closest('.setting-item').classList.contains('active');
 }
 
 // Capture phase so Escape is recorded instead of hiding the window.
