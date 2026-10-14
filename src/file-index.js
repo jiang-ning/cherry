@@ -75,7 +75,7 @@ class FileIndex {
           ELSE ${STATE_PENDING}
         END,
         modified_ms = excluded.modified_ms,
-        size = excluded.size  
+        size = excluded.size
     `);
     this.recordFiles = this.db.transaction((files, scanId) => {
       for (const file of files) recordFile.run({ ...file, scanId });
@@ -190,7 +190,7 @@ class FileIndex {
         DELETE FROM files;
         INSERT INTO files_fts(files_fts) VALUES ('delete-all');
         DELETE FROM meta WHERE key = 'initial_index_done';
-        ${DELETE_TRIGGER}  
+        ${DELETE_TRIGGER}
       `);
     })();
     this.db.exec('VACUUM');

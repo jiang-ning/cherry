@@ -84,10 +84,10 @@ function showMainWindow() {
 
 function createTray() {
   tray = new Tray(path.join(IMAGES_DIR, 'tray.png'));
-  tray.setToolTip('Inwordia');
+  tray.setToolTip('CherryQuery');
   tray.on('double-click', showMainWindow);
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Open Inwordia', click: showMainWindow },
+    { label: 'Open CherryQuery', click: showMainWindow },
     { type: 'separator' },
     {
       label: 'Exit',
