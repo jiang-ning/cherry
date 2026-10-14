@@ -67,6 +67,7 @@ function describeIndex(status) {
     parts.push(`${status.pending.toLocaleString()} waiting${note}`);
   }
   if (status.scanning) parts.push('checking for changes');
+  if (status.paused) parts.push('paused');
   return parts.join(' • ');
 }
 
@@ -285,9 +286,43 @@ window.electronAPI.getIndexLocation().then((location) => {
   indexFileLocation.title = location;
 });
 
+const pauseIndexButton = document.getElementById('pauseIndex');
+const clearIndexButton = document.getElementById('clearIndex');
+
 function updateIndexAmount() {
   indexAmount.textContent = (indexStatus?.indexed ?? 0).toLocaleString();
+  pauseIndexButton.textContent = indexStatus?.paused ? 'Resume Index' : 'Pause Index';
 }
+
+pauseIndexButton.addEventListener('click', async () => {
+  pauseIndexButton.disabled = true;
+  try {
+    const paused = await window.electronAPI.setIndexPaused(!indexStatus?.paused);
+    indexStatus = { ...indexStatus, paused };
+    updateIndexAmount();
+    updateWelcome();
+  } catch (error) {
+    alert(`Could not change indexing state: ${error.message}`);
+  } finally {
+    pauseIndexButton.disabled = false;
+  }
+});
+
+clearIndexButton.addEventListener('click', async () => {
+  clearIndexButton.disabled = true;
+  try {
+    if (await window.electronAPI.clearIndex()) {
+      indexStatus = await window.electronAPI.getIndexStatus();
+      updateIndexAmount();
+      updateWelcome();
+      updateDiskUsage();
+    }
+  } catch (error) {
+    alert(`Could not clear the index: ${error.message}`);
+  } finally {
+    clearIndexButton.disabled = false;
+  }
+});
 
 function chartSegment(className, bytes, totalBytes, label) {
   const segment = document.createElement('div');

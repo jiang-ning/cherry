@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getIndexStatus: () => ipcRenderer.invoke('index:status'),
   getIndexLocation: () => ipcRenderer.invoke('index:location'),
   getDiskUsage: () => ipcRenderer.invoke('index:disk-usage'),
+  setIndexPaused: (paused) => ipcRenderer.invoke('index:set-paused', paused),
+  clearIndex: () => ipcRenderer.invoke('index:clear'),
   getIndexPaths: () => ipcRenderer.invoke('index-paths:get'),
   addIndexPath: () => ipcRenderer.invoke('index-paths:add'),
   removeIndexPath: (folder) => ipcRenderer.invoke('index-paths:remove', folder),
