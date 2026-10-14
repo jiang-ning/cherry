@@ -20,7 +20,7 @@ let indexPaths = [];
 let indexExtensions = [];
 let excludedFolders = [];
 let maxFileSizeMB = DEFAULT_MAX_FILE_SIZE_MB;
-const pendingSearches = new Map();
+const pendingRequests = new Map();
 
 const LOGIN_ARGS = ['--hidden'];
 let startHidden = process.argv.includes('--hidden');
@@ -28,6 +28,7 @@ let launchAtStartup = false;
 let caseSensitive = false;
 let searchFileNames = false;
 let maxResults = 500;
+let indexPaused = false;
 
 const createWindow = () => {
   const show = !startHidden;
@@ -147,13 +148,48 @@ ipcMain.handle('search:start', (_event, keyword) => {
 
   const requestId = randomUUID();
   return new Promise((resolve, reject) => {
-    pendingSearches.set(requestId, { resolve, reject });
+    pendingRequests.set(requestId, { resolve, reject });
     indexWorker.postMessage({ type: 'search', requestId, query, caseSensitive, searchFileNames, maxResults });
   });
 });
 
 ipcMain.handle('index:status', () => indexStatus);
 ipcMain.handle('index:location', () => getDatabasePath());
+
+ipcMain.handle('index:set-paused', async (_event, paused) => {
+  if (typeof paused !== 'boolean') throw new Error('Invalid value.');
+  if (!indexWorker) throw new Error('The search index is not running.');
+  indexPaused = paused;
+  await saveSettings();
+  indexWorker.postMessage({ type: 'set-paused', paused });
+  return paused;
+});
+
+ipcMain.handle('index:clear', async (event) => {
+  if (!indexWorker) throw new Error('The search index is not running.');
+  const win = BrowserWindow.fromWebContents(event.sender);
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'warning',
+    buttons: ['Clear Index', 'Cancel'],
+    defaultId: 1,
+    cancelId: 1,
+    title: 'Clear Index',
+    message: 'Clear the file index?',
+    detail: 'All indexed content will be removed. Indexing stays paused untill you click Resume Index.'
+  });
+  if (response !== 0) return false;
+
+  // Pause first so the worker does not start rebuilding the index as soon as it is cleared.
+  indexPaused = true;
+  await saveSettings();
+  indexWorker.postMessage({ type: 'set-paused', paused: true });
+  const requestId = randomUUID();
+  await new Promise((resolve, reject) => {
+    pendingRequests.set(requestId, { resolve, reject });
+    indexWorker.postMessage({ type: 'clear', requestId });
+  });
+  return true;
+});
 
 ipcMain.handle('index:disk-usage', async () => {
   const databasePath = getDatabasePath();
@@ -343,10 +379,11 @@ async function loadSettings() {
   if (typeof settings.searchFileNames === 'boolean') searchFileNames = settings.searchFileNames;
   if (isValidMaxResults(settings.maxResults)) maxResults = settings.maxResults;
   if (isValidMaxFileSize(settings.maxFileSizeMB)) maxFileSizeMB = settings.maxFileSizeMB;
+  if (typeof settings.indexPaused === 'boolean') indexPaused = settings.indexPaused;
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
@@ -387,10 +424,10 @@ function handleWorkerMessage(message) {
     return;
   }
 
-  if (message.type === 'search-response') {
-    const pending = pendingSearches.get(message.requestId);
+  if (message.type === 'search-response' || message.type === 'clear-response') {
+    const pending = pendingRequests.get(message.requestId);
     if (!pending) return;
-    pendingSearches.delete(message.requestId);
+    pendingRequests.delete(message.requestId);
     if (message.error) {
       pending.reject(new Error(message.error));
     } else {
@@ -400,9 +437,9 @@ function handleWorkerMessage(message) {
   }
 }
 
-function failPendingSearches(reason) {
-  for (const { reject } of pendingSearches.values()) reject(new Error(reason));
-  pendingSearches.clear();
+function failPendingRequests(reason) {
+  for (const { reject } of pendingRequests.values()) reject(new Error(reason));
+  pendingRequests.clear();
 }
 
 function getDatabasePath() {
@@ -416,7 +453,8 @@ function startIndexWorker() {
       roots: indexPaths,
       extensions: indexExtensions,
       excludedFolders,
-      maxFileSizeMB
+      maxFileSizeMB,
+      paused: indexPaused
     }
   });
   indexWorker.on('message', handleWorkerMessage);
@@ -426,7 +464,7 @@ function startIndexWorker() {
   });
   indexWorker.on('exit', () => {
     indexWorker = null;
-    failPendingSearches('The search index stopped.');
+    failPendingRequests('The search index stopped.');
   });
 
   const reportIdle = () => {

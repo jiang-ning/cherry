@@ -20,6 +20,12 @@ const previewSelect = (innerQuery) => `
   ORDER BY modifiedMs DESC
 `;
 
+const DELETE_TRIGGER = `
+  CREATE TRIGGER IF NOT EXISTS files_ad AFTER DELETE ON files BEGIN
+    INSERT INTO files_fts(files_fts, rowid, content) VALUES ('delete', old.id, old.content);
+  END;
+`;
+
 const matchColumns = `
   f.path, f.modified_ms AS modifiedMs, f.content, length(f.content) AS textLength,
   instr(lower(f.content), lower(@query)) AS position,
@@ -52,9 +58,7 @@ class FileIndex {
       CREATE TRIGGER IF NOT EXISTS files_ai AFTER INSERT ON files BEGIN
         INSERT INTO files_fts(rowid, content) VALUES (new.id, new.content);
       END;
-      CREATE TRIGGER IF NOT EXISTS files_ad AFTER DELETE ON files BEGIN
-        INSERT INTO files_fts(files_fts, rowid, content) VALUES ('delete', old.id, old.content);
-      END;
+      ${DELETE_TRIGGER}
       CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN
         INSERT INTO files_fts(files_fts, rowid, content) VALUES ('delete', old.id, old.content);
         INSERT INTO files_fts(rowid, content) VALUES (new.id, new.content);
@@ -175,6 +179,22 @@ class FileIndex {
 
   stats() {
     return this.statsStatement.get();
+  }
+
+  // Removes every indexed file and shrinks the database files on disk.
+  clear() {
+    this.db.transaction(() => {
+      // Dropping the per-row FTS delete trigger and emptying FTS in one step is much faster for large indexes.
+      this.db.exec(`
+        DROP TRIGGER IF EXISTS files_ad;
+        DELETE FROM files;
+        INSERT INTO files_fts(files_fts) VALUES ('delete-all');
+        DELETE FROM meta WHERE key = 'initial_index_done';
+        ${DELETE_TRIGGER}  
+      `);
+    })();
+    this.db.exec('VACUUM');
+    this.db.pragma('wal_checkpoint(TRUNCATE)');
   }
 
   search(rawQuery, caseSensitive = false, searchFileNames = false) {

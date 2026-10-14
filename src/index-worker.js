@@ -26,13 +26,28 @@ let scanning = false;
 let catchUp = false;
 let lastError = null;
 let lastStatusAt = 0;
+// User-requested pause: scanning and content extraction stop, searching keeps working.
+let paused = Boolean(workerData.paused);
+let resumeWaiters = [];
+// Set by a clear so an in-flight scan stops instead of recording files against the wiped index.
+let abortScan = false;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // setTimeout has ~15ms resolution on Windows, so zero-length pauses yield with setImmediate instead.
 const pause = (ms) => (ms ? sleep(ms) : new Promise((resolve) => setImmediate(resolve)));
 
+async function waitWhilePaused() {
+  while (paused) await new Promise((resolve) => resumeWaiters.push(resolve));
+}
+
+function setPaused(value) {
+  paused = value;
+  if (!paused) resumeWaiters.splice(0).forEach((resolve) => resolve());
+  postStatus(true);
+}
+
 function currentStatus() {
-  return { ...index.stats(), scanning, idle, initialIndexing, error: lastError };
+  return { ...index.stats(), scanning, idle, initialIndexing, paused, error: lastError };
 }
 
 // Returns { directory } or { file } for entries worth visiting, otherwise null.
@@ -81,6 +96,8 @@ async function scan() {
   const unreadableRoots = [];
 
   while (queue.length) {
+    await waitWhilePaused();
+    if (abortScan) break;
     const directory = queue.pop();
     let entries;
     try {
@@ -103,6 +120,13 @@ async function scan() {
     await pause(idle || initialIndexing || catchUp ? 0 : 5);
   }
 
+  if (abortScan) {
+    abortScan = false;
+    scanning = false;
+    postStatus(true);
+    return;
+  }
+
   // An unreadable root (e.g. unplugged drive) would otherwise look like all its files were deleted.
   for (const root of unreadableRoots) index.keepFilesUnder(root, scanId);
   index.finishScan(scanId);
@@ -123,7 +147,9 @@ function waitForRescan() {
 
 async function scanLoop() {
   for (;;) {
+    await waitWhilePaused();
     rescanRequested = false;
+    abortScan = false;
     try {
       await scan();
       lastError = null;
@@ -140,6 +166,7 @@ async function scanLoop() {
 
 async function indexLoop() {
   for (;;) {
+    await waitWhilePaused();
     try {
       const file = index.nextPending();
       if (!file && initialIndexing && scanCompleted) {
@@ -213,6 +240,29 @@ parentPort.on('message', (message) => {
     return;
   }
 
+  if (message.type === 'set-paused') {
+    setPaused(Boolean(message.paused));
+    return;
+  }
+
+  if (message.type === 'clear') {
+    try {
+      index.clear();
+      lastError = null;
+      initialIndexing = true;
+      scanCompleted = false;
+      catchUp = false;
+      if (scanning) abortScan = true;
+      rescanRequested = true;
+      wakeScan?.();
+      parentPort.postMessage({ type: 'clear-response', requestId: message.requestId, status: currentStatus() });
+    } catch (error) {
+      parentPort.postMessage({ type: 'clear-response', requestId: message.requestId, error: error.message });
+    }
+    postStatus(true);
+    return;
+  }
+
   if (message.type === 'search') {
     try {
       index.maxResults = message.maxResults;
@@ -230,5 +280,7 @@ parentPort.on('message', (message) => {
   }
 });
 
+// A worker that starts paused never scans, so report the current state right away.
+postStatus(true);
 scanLoop();
 indexLoop();
