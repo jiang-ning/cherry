@@ -57,17 +57,17 @@ let indexStatus = null;
 let debounceTimer;
 
 function describeIndex(status) {
-  if (!status) return 'Index starting...';
-  if (status.error) return `Index error: ${status.error}`;
-  const parts = [`${status.indexed.toLocaleString()} files indexed`];
+  if (!status) return translate('__index_starting__') || 'Index starting...';
+  if (status.error) return translate('__index_error__') + `: ${status.error}` || `Index error: ${status.error}`;
+  const parts = [`${status.indexed.toLocaleString()} ` + (translate('__files_indexed__') || 'files indexed')];
   if (status.pending) {
     const note = status.initialIndexing
-      ? ' (first-time indexing, newest files first)'
-      : status.idle ? '' : ' (older files are indexed when the computer is idle)';
+      ? (translate('__firsttime_indexing_newest_files_first__') || ' (first-time indexing, newest files first)')
+      : status.idle ? '' : (translate('__older_files_are_indexed_when_the_computer_is_idle__') || ' (older files are indexed when the computer is idle)');
     parts.push(`${status.pending.toLocaleString()} waiting${note}`);
   }
-  if (status.scanning) parts.push('checking for changes');
-  if (status.paused) parts.push('paused');
+  if (status.scanning) parts.push(translate('__checking_for_changes__') || 'checking for changes');
+  if (status.paused) parts.push(translate('__paused__') || 'paused');
   return parts.join(' • ');
 }
 
@@ -245,22 +245,15 @@ async function runSearch() {
     if (searchId !== currentSearchId) return;
     indexStatus = status;
 
-    const details = [`${results.length} matched files`];
-    if (limitReached) details.push(`showing the ${results.length} most recently modified`);
     const items = results.map(renderFile);
-    showResults(details.join(` • `), items, items.length ? renderTypeTags(results, items) : null);
+    showResults(items, items.length ? renderTypeTags(results, items) : null);
   } catch (error) {
-    if (searchId === currentSearchId) showResults(`Search failed: ${error.message}`, []);
+    if (searchId === currentSearchId) showResults(`${translate('__search_failed__') || 'Search failed:'} ${error.message}`, []);
   }
 }
 
 // Swap content in one step; the previous list stays visible until then, so the window never collapses between searches.
-function showResults(summary, items, typeTags = null) {
-  // Match counts are not useful to users, so no status line is shown.
-  // statusLine = document.createElement('div');
-  // statusLine.className = 'search-status';
-  // statusLine.textContent = summary;
-  // fileList.replaceChildren(statusLine, ...items);
+function showResults(items, typeTags = null) {
   fileList.replaceChildren(...(typeTags ? [typeTags] : []), ...items);
   if (!items.length) {
     fileList.hidden = true;
@@ -291,7 +284,7 @@ const clearIndexButton = document.getElementById('clearIndex');
 
 function updateIndexAmount() {
   indexAmount.textContent = (indexStatus?.indexed ?? 0).toLocaleString();
-  pauseIndexButton.textContent = indexStatus?.paused ? 'Resume Index' : 'Pause Index';
+  pauseIndexButton.textContent = indexStatus?.paused ? translate('__resume_index__') || 'Resume Index' : translate('__pause_index__') || 'Pause Index';
 }
 
 pauseIndexButton.addEventListener('click', async () => {
@@ -302,7 +295,7 @@ pauseIndexButton.addEventListener('click', async () => {
     updateIndexAmount();
     updateWelcome();
   } catch (error) {
-    alert(`Could not change indexing state: ${error.message}`);
+    alert(`${translate('__could_not_change_indexing_state__') || 'Could not change indexing state:'} ${error.message}`);
   } finally {
     pauseIndexButton.disabled = false;
   }
@@ -318,7 +311,7 @@ clearIndexButton.addEventListener('click', async () => {
       updateDiskUsage();
     }
   } catch (error) {
-    alert(`Could not clear the index: ${error.message}`);
+    alert(`${translate('__could_not_clear_the_index__') || 'Could not clear the index:'} ${error.message}`);
   } finally {
     clearIndexButton.disabled = false;
   }
@@ -338,13 +331,13 @@ async function updateDiskUsage() {
     diskSpaceUsed.textContent = (indexBytes / MB).toFixed(1);
     const otherBytes = Math.max(0, totalBytes - freeBytes - indexBytes);
     diskUsageRatioChart.replaceChildren(
-      chartSegment('disk-used', otherBytes, totalBytes, `Disk used: ${(otherBytes / GB).toFixed(1)} GB`),
-      chartSegment('disk-index', indexBytes, totalBytes, `Index: ${(indexBytes / MB).toFixed(1)} MB`),
-      chartSegment('disk-free', freeBytes, totalBytes, `Free: ${(freeBytes / GB).toFixed(1)} GB`)
+      chartSegment('disk-used', otherBytes, totalBytes, `${translate('__disk_used__') || 'Disk used:'} ${(otherBytes / GB).toFixed(1)} GB`),
+      chartSegment('disk-index', indexBytes, totalBytes, `${translate('__index_used__') || 'Index used:'} ${(indexBytes / MB).toFixed(1)} MB`),
+      chartSegment('disk-free', freeBytes, totalBytes, `${translate('__disk_free__') || 'Disk free:'} ${(freeBytes / GB).toFixed(1)} GB`)
     );
   } catch (error) {
     diskUsageRatioChart.replaceChildren();
-    diskUsageRatioChart.title = `Disk usage unavailable: ${error.message}`;
+    diskUsageRatioChart.title = `${translate('__disk_usage_unavailable__') || 'Disk usage unavailable:'} ${error.message}`;
   }
 }
 
@@ -416,18 +409,22 @@ document.addEventListener('click', (event) => {
 
 function changeLanguage(languageCode) {
   const elementsInnerText = document.querySelectorAll('[data-lang-innertext]');
+  const elementsInnerHTML = document.querySelectorAll('[data-lang-innerhtml');
   const elementsTitle = document.querySelectorAll('[data-lang-title]');
   const elementsPlaceholder = document.querySelectorAll('[data-lang-placeholder]');
 
-  if(languageCode === 'ar' || languageCode === 'pk') {
+  if(languageCode === 'ar') {
     document.body.classList.add('ar');
   }
-  if(languageCode !== 'ar' && languageCode !== 'pk' && document.body.classList.contains('ar')) {
+  if(languageCode !== 'ar' && document.body.classList.contains('ar')) {
     document.body.classList.remove('ar');
   }
   
   elementsInnerText.forEach(el => {
     el.innerText = Languages[languageCode][el.dataset['langInnertext']] || el.innerText;
+  });
+  elementsInnerHTML.forEach(el => {
+    el.innerHTML = Languages[languageCode][el.dataset['langInnerhtml']] || el.innerHTML;
   });
   elementsTitle.forEach(el => {
     el.title = Languages[languageCode][el.dataset['langTitle']] || el.title;
@@ -617,7 +614,7 @@ document.getElementById('indexFileExtensionAdd').addEventListener('click', () =>
       renderIndexExtensions(await window.electronAPI.addIndexExtension(input.value));
     } catch {
       input.classList.add('invalid');
-      input.title = 'Use letters, digits, _ + or -, e.g. .txt';
+      input.title = translate('__use_letters_digits__') || 'Use letters, digits, _ + or -, e.g. .txt';
       committing = false;
     }
   });
@@ -663,7 +660,7 @@ document.getElementById('indexExcludeFolderAdd').addEventListener('click', () =>
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'index-extension-input';
-  input.placeholder = 'folder name';
+  input.placeholder = translate('__folder_name__') || 'folder name';
   input.maxLength = 255;
   let committing = false;
 
@@ -677,7 +674,7 @@ document.getElementById('indexExcludeFolderAdd').addEventListener('click', () =>
       renderExcludedFolders(await window.electronAPI.addExcludedFolder(input.value));
     } catch {
       input.classList.add('invalid');
-      input.title = 'Enter a folder name only, without slashes or special characters';
+      input.title = translate('__enter_folder_name__') || 'Enter a folder name only, without slashes or special characters';
       committing = false;
     }
   });
@@ -775,7 +772,7 @@ btnHotkeysSave.addEventListener('click', async () => {
     savedHotkeyCombo = combo;
     renderWelcomeHotkey();
     btnHotkeysSave.disabled = true;
-    hotkeysMessage.textContent = `Hotkey applied: ${combo.join(' + ')}`;
+    hotkeysMessage.textContent = `${translate('__hotkey_applied__') || 'Hotkey applied: '} ${combo.join(' + ')}`;
   } catch (error) {
     hotkeysMessage.textContent = error.message.replace(/^Error invoking remote method '[^']*': (Error: )?/, '');
   }
@@ -784,7 +781,7 @@ btnHotkeysSave.addEventListener('click', async () => {
 btnHotkeysReset.addEventListener('click', () => {
   showSavedHotkey();
   hotkeyReleased = true;
-  hotkeysMessage.textContent = `Restored the current hotkey: ${savedHotkeyCombo.join(' + ')}`;
+  hotkeysMessage.textContent = `${translate('__restored_the_current_hotkey__') || 'Restored the current hotkey: '} ${savedHotkeyCombo.join(' + ')}`;
 });
 
 function hotkeyName(event) {
@@ -848,7 +845,7 @@ window.addEventListener('keydown', (event) => {
   if (!hotkeyCombo.includes(name)) hotkeyCombo.push(name);
   renderHotkeyCombo();
   btnHotkeysSave.disabled = true;
-  hotkeysMessage.textContent = 'Recording...';
+  hotkeysMessage.textContent = translate('__recording__') || 'Recording...';
 }, true);
 
 window.addEventListener('keyup', (event) => {
@@ -856,11 +853,13 @@ window.addEventListener('keyup', (event) => {
   event.preventDefault();
   hotkeyReleased = true;
   if (hotkeyCombo.length < 2) {
-    hotkeysMessage.textContent = 'Invalid: a single key is not allowed. Combine a modifier (Ctrl, Alt or Shift) with another key.';
+    hotkeysMessage.textContent = translate('__hotkey_invalid_single_key__') || 'Invalid: a single key is not allowed. Combine a modifier (Ctrl, Alt or Shift) with another key.';
   } else if (!MODIFIERS.includes(hotkeyCombo[0])) {
-    hotkeysMessage.textContent = 'Invalid: the first key must be Ctrl, Alt or Shift.';
+    hotkeysMessage.textContent = translate('__hotkey_invalid_first_key__') || 'Invalid: the first key must be Ctrl, Alt or Shift.';
   } else {
-    hotkeysMessage.textContent = `Valid combination: ${hotkeyCombo.join(' + ')}. Click Save to apply it.`;
+    const msgValidCombo = translate('__hotkey_valid_combo__') || 'Valid combination';
+    const msgSave = translate('__hotkey_save_to_apply__') || 'Click Save to apply it.';
+    hotkeysMessage.textContent = `${msgValidCombo}: ${hotkeyCombo.join(' + ')}. ${msgSave}`;
     btnHotkeysSave.disabled = hotkeyCombo.join('+') === savedHotkeyCombo.join('+');
   }
 }, true);

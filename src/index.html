@@ -39,11 +39,11 @@
       <div class="setting-header">
         <div id="brand" data-lang-innertext="__settings__">Settings</div>
         <div class="setting-nav">
-          <span class="setting-menu-item active">General</span>
-          <span class="setting-menu-item">Index</span>
-          <span class="setting-menu-item">Hotkeys</span>
+          <span class="setting-menu-item active" data-lang-innertext="__general__">General</span>
+          <span class="setting-menu-item" data-lang-innertext="__index__">Index</span>
+          <span class="setting-menu-item" data-lang-innertext="__hotkeys__">Hotkeys</span>
           <span class="setting-menu-seperator">|</span>
-          <span id="btnWelcomeScreen" class="setting-menu-item">Welcome</span>
+          <span id="btnWelcomeScreen" class="setting-menu-item" data-lang-innertext="__welcome__">Welcome</span>
         </div>
       </div>
       <div class="setting-item-container">
@@ -52,7 +52,7 @@
           <div class="general-row general-row-top">
           <div class="setting-section-col">
             <div class="setting-section">
-              <div class="setting-name">Language:</div>
+              <div class="setting-name" data-lang-innertext="__language__">Language:</div>
               <div class="setting-contents">
                 <div class="language-selection">
                   <div id="languageList" class="custom-select">
@@ -77,14 +77,14 @@
               </div>
             </div><!-- end of Language selection -->
             <div class="setting-section">
-              <div class="setting-name">Theme:</div>
+              <div class="setting-name" data-lang-innertext="__theme__">Theme:</div>
               <div class="setting-contents">
                 <div id="themeSelection">
                   <div class="theme auto">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                       <path d="M8 15A7 7 0 1 0 8 1zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16"/>
                     </svg>
-                    <span>Auto</span>
+                    <span data-lang-innertext="__auto__">Auto</span>
                   </div>
                   <div class="theme light">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="theme-icon-outline" viewBox="0 0 16 16">
@@ -93,7 +93,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="theme-icon-fill" viewBox="0 0 16 16">
                       <path d="M12 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0m0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13m8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5M3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8m10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0m-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0m9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707M4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708"/>
                     </svg>
-                    <span>Light</span>
+                    <span data-lang-innertext="__light__">Light</span>
                   </div>
                   <div class="theme dark">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="theme-icon-outline" viewBox="0 0 16 16">
@@ -102,7 +102,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="theme-icon-fill" viewBox="0 0 16 16">
                       <path d="M6 .278a.77.77 0 0 1 .08.858 7.2 7.2 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277q.792-.001 1.533-.16a.79.79 0 0 1 .81.316.73.73 0 0 1-.031.893A8.35 8.35 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.75.75 0 0 1 6 .278"/>
                     </svg>
-                    <span>Dark</span>
+                    <span data-lang-innertext="__dark__">Dark</span>
                   </div>
                 </div>
               </div>
@@ -113,7 +113,7 @@
               <label class="switch">
                 <input id="launchAtStartup" type="checkbox" />
                 <span class="switch-slider"></span>
-                <span class="switch-text">Launch at startup</span>
+                <span class="switch-text" data-lang-innertext="__launch_at_startup__">Launch at startup</span>
               </label>
             </div>
           </div><!-- end of launch at startup -->
@@ -121,23 +121,23 @@
 
           <div class="general-row general-row-search">
           <div class="setting-section">
-            <div class="setting-name">Search:</div>
+            <div class="setting-name" data-lang-innertext="__search__">Search:</div>
             <div class="setting-contents search-options">
               <label class="switch">
                 <input id="caseSensitive" type="checkbox" />
                 <span class="switch-slider"></span>
-                <span class="switch-text">Case sensitive</span>
+                <span class="switch-text" data-lang-innertext="__case_sensitive__">Case sensitive</span>
               </label>
               <label class="switch">
                 <input id="searchFileNames" type="checkbox" />
                 <span class="switch-slider"></span>
-                <span class="switch-text">Search file names</span>
+                <span class="switch-text" data-lang-innertext="__search_file_names__">Search file names</span>
               </label>
               <div class="range-slider">
                 <input id="maximumResults" type="range" min="100" max="1000" step="100" value="500" />
                 <div>
                   <span id="maximumResultsValue" class="range-value">500</span>
-                  <span class="switch-text">maximum search results</span>
+                  <span class="switch-text" data-lang-innertext="__maximum_search_results__">maximum search results</span>
                 </div>
               </div><!-- end of max result range -->
             </div>
@@ -146,7 +146,7 @@
 
           <div class="general-row">
             <div class="setting-section">
-              <div class="setting-name">Version:</div>
+              <div class="setting-name" data-lang-innertext="__version__">Version:</div>
               <div class="setting-contents">1.0.0</div>
             </div>
           </div><!-- end of row 3 -->
@@ -158,27 +158,28 @@
             <div class="indexUsage-wrapper">
 
               <div class="indexUsageInfo">
-                <div class="setting-name">File Index</div>
+                <div class="setting-name" data-lang-innertext="__file_index__">File Index</div>
                 <div class="range-slider">
                   <div>
+                    <span class="switch-text" data-lang-innertext="__max_size_file_index__">Each index file is no larger than </span>
                     <span id="maximumSizeValue" class="range-value">50</span>
-                    <span class="switch-text">MB max size limited for a single file index</span>
+                    <span>MB</span>
                   </div>
                   <input id="maximumSize" type="range" min="10" max="200" step="10" value="50" />
                 </div>
               </div>
-              <span id="indexAmount">0</span><span> files indexed. </span>
-              <span id="diskSpaceUsed">0</span><span> MB disk space used.</span>
-              <div id="indexFileLocation">Location: <span></span></div>
+              <span id="indexAmount">0</span><span data-lang-innertext="__files_indexed__"> files indexed. </span>
+              <span id="diskSpaceUsed">0</span><span data-lang-innertext="__disk_space_used__"> MB disk space used.</span>
+              <div id="indexFileLocation" data-lang-innertext="__location__">Location: <span></span></div>
             </div>
             <div class="diskUsageInfo">
               <div id="diskUsageRatioChart"></div>
-              <button id="pauseIndex">Pause Index</button>
-              <button id="clearIndex">Clear Index</button>
+              <button id="pauseIndex" data-lang-innertext="__pause_index__">Pause Index</button>
+              <button id="clearIndex" data-lang-innertext="__clear_index__">Clear Index</button>
             </div>
             <div class="indexSelectionRow">
               <div class="indexSelections">
-                <label for="indexPath">Index Path:</label>
+                <label for="indexPath" data-lang-innertext="__index_path__">Index Path:</label>
                 <div id="indexPath" class="index-box">
                   <div id="indexPathList" class="index-list"></div>
                   <div id="indexPathAction" class="index-actions">
@@ -188,7 +189,7 @@
                 </div>
               </div>
               <div class="indexSelections">
-                <label for="indexExcludeFolder">Index Exclude Folder:</label>
+                <label for="indexExcludeFolder" data-lang-innertext="__index_excluded_folders__">Index Exclude Folder:</label>
                 <div id="indexExcludeFolder" class="index-box">
                   <div id="indexExcludeFolderList" class="index-list"></div>
                   <div id="indexExcludeFolderAction" class="index-actions">
@@ -198,7 +199,7 @@
                 </div>
               </div>
               <div class="indexSelections">
-                <label for="indexFileExtension">Index File Extension:</label>
+                <label for="indexFileExtension" data-lang-innertext="__index_file_extension__">Index File Extension:</label>
                 <div id="indexFileExtension" class="index-box">
                   <div id="indexFileExtensionList" class="index-list"></div>
                   <div id="indexFileExtensionAction" class="index-actions">
@@ -227,11 +228,11 @@
                 </svg>
               </span>
             </div>
-            <div id="hotkeys-message">Simply press the desired key combination on your keyboard to replace current keyboard shortcut with a new one to call me.</div>
+            <div id="hotkeys-message" data-lang-innertext="__hotkey_desc__">Simply press the desired key combination on your keyboard to replace current keyboard shortcut with a new one to call me.</div>
           </div>
           <div class="setting-actions">
-            <button id="btnHotkeysSave" class="primary">Save</button>
-            <button id="btnHotkeysReset">Reset</button>
+            <button id="btnHotkeysSave" class="primary" data-lang-innertext="__save__">Save</button>
+            <button id="btnHotkeysReset" data-lang-innertext="__reset__">Reset</button>
           </div>
         </div><!-- end of Hotkeys -->
 
@@ -256,31 +257,32 @@
               <path d="M21,9c-0.6,0-1,0.4-1,1v3H4v-3c0-0.6-0.4-1-1-1s-1,0.4-1,1v4c0,0.6,0.4,1,1,1h18c0.6,0,1-0.4,1-1v-4C22,9.4,21.6,9,21,9z" />
             </svg>
           </span>
-          <div class="shortcutKeys-desc">to <b>Open</b></div>
+          <div class="shortcutKeys-desc" data-lang-innerhtml="__to_open__">to <b>Open</b></div>
         </div>
         <div class="shortcutKeys">
           <span>ESC</span>
-          <div class="shortcutKeys-desc">to <b>Close</b> (Minimize to Tray)</div>
+          <div class="shortcutKeys-desc" data-lang-innerhtml="__to_close__">to <b>Close</b> (Minimize to Tray)</div>
         </div>
       </div>
       <div class="welcome-introForSearch">
-        <div class="intro-item">
+        <div class="intro-item" data-lang-innerhtml="__welcome_whole_word_match__">
           <b>Whole word match:</b> wrap a term in double quotes.<br>e.g. <code>"cat"</code> matches "cat" but not "category".
         </div>
         <div class="intro-item">
-          <b>Operators:</b> combine terms with
+          <span data-lang-innerhtml="__welcome_operator_desc__"><b>Operators:</b> combine terms with</span>
           <span class="query-operator">AND</span>,
-          <span class="query-operator">OR</span> and
+          <span class="query-operator">OR</span>
+          <span data-lang-innertext="__welcome_and__"> and </span>
           <span class="query-operator">NOT</span>.
-          <div>e.g. <code>apple <span class="query-operator">AND</span> pie</code>,
+          <div data-lang-innerhtml="__welcome_operator_example__">e.g. <code>apple <span class="query-operator">AND</span> pie</code>,
             <code>apple <span class="query-operator">OR</span> pear</code>,
             <code>apple <span class="query-operator">NOT</span> pie</code>
           </div>
         </div>
       </div>
       <div class="welcome-actions">
-        <button id="btnSettings">Settings</button>
-        <button id="welcome-ok" class="primary">Got it</button>
+        <button id="btnSettings" data-lang-innertext="__settings__">Settings</button>
+        <button id="welcome-ok" class="primary" data-lang-innertext="__welcome_got_it__">Got it</button>
       </div>
     </div><!-- end of Welcome screen -->
 

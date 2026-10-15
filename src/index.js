@@ -87,10 +87,10 @@ function createTray() {
   tray.setToolTip('CherryQuery');
   tray.on('double-click', showMainWindow);
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'Open CherryQuery', click: showMainWindow },
+    { label: (translate('__open__') || 'Open') + ' CherryQuery', click: showMainWindow },
     { type: 'separator' },
     {
-      label: 'Exit',
+      label: translate('__exit__') || 'Exit',
       click: () => {
         isQuitting = true;
         app.quit();
@@ -170,12 +170,12 @@ ipcMain.handle('index:clear', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const { response } = await dialog.showMessageBox(win, {
     type: 'warning',
-    buttons: ['Clear Index', 'Cancel'],
+    buttons: [translate('__clear_index__') || 'Clear Index', translate('__cancel__') || 'Cancel'],
     defaultId: 1,
     cancelId: 1,
-    title: 'Clear Index',
-    message: 'Clear the file index?',
-    detail: 'All indexed content will be removed. Indexing stays paused untill you click Resume Index.'
+    title: translate('__clear_index__') || 'Clear Index',
+    message: translate('__clear_the_index_db__') || 'Clear the index database?',
+    detail: translate('__clear_index_detail__') || 'All indexed content will be removed. Indexing stays paused untill you click Resume Index.'
   });
   if (response !== 0) return false;
 
@@ -464,7 +464,7 @@ function startIndexWorker() {
   });
   indexWorker.on('exit', () => {
     indexWorker = null;
-    failPendingRequests('The search index stopped.');
+    failPendingRequests(translate('__search_index_stopped__') || 'The search index stopped.');
   });
 
   const reportIdle = () => {
