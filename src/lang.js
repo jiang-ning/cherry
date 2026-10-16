@@ -191,3 +191,6 @@ const Languages = {
 
   }
 }
+
+// Loaded as a plain <script> in the renderer and via require() in the main process.
+if (typeof module !== 'undefined' && module.exports) module.exports = { Languages };

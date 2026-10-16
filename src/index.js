@@ -7,6 +7,7 @@ const { Worker } = require('worker_threads');
 const { 
   DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS, DEFAULT_MAX_FILE_SIZE_MB, MIN_FILE_SIZE_MB, MAX_FILE_SIZE_MB
 } = require('./search');
+const { Languages } = require('./lang');
 
 const IDLE_THRESHOLD_SECONDS = 60;
 const IMAGES_DIR = path.join(__dirname, 'images');
@@ -29,6 +30,11 @@ let caseSensitive = false;
 let searchFileNames = false;
 let maxResults = 500;
 let indexPaused = false;
+let language = 'en';
+
+function translate(wordsCode) {
+  return (Languages[language] || Languages.en)[wordsCode] || false;
+}
 
 const createWindow = () => {
   const show = !startHidden;
@@ -86,11 +92,16 @@ function createTray() {
   tray = new Tray(path.join(IMAGES_DIR, 'tray.png'));
   tray.setToolTip('CherryQuery');
   tray.on('double-click', showMainWindow);
+  updateTrayMenu();
+}
+
+function updateTrayMenu() {
+  if (!tray) return;
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: 'CherryQuery', click: showMainWindow },
+    { label: `${translate('__open_cherryquery__') || 'Open'} CherryQuery`, click: showMainWindow },
     { type: 'separator' },
     {
-      label: 'Exit',
+      label: translate('__exit__') || 'Exit',
       click: () => {
         isQuitting = true;
         app.quit();
@@ -98,6 +109,15 @@ function createTray() {
     }
   ]));
 }
+
+ipcMain.handle('language:set', async (_event, value) => {
+  if (!Object.hasOwn(Languages, value)) throw new Error('Invalid language.');
+  if (value === language) return language;
+  language = value;
+  updateTrayMenu();
+  await saveSettings();
+  return language;
+});
 
 ipcMain.on('minimize', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.minimize();
@@ -380,10 +400,11 @@ async function loadSettings() {
   if (isValidMaxResults(settings.maxResults)) maxResults = settings.maxResults;
   if (isValidMaxFileSize(settings.maxFileSizeMB)) maxFileSizeMB = settings.maxFileSizeMB;
   if (typeof settings.indexPaused === 'boolean') indexPaused = settings.indexPaused;
+  if (Object.hasOwn(Languages, settings.language)) language = settings.language;
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused, language }, null, 2));
 }
 
 async function applyIndexPaths(paths) {

@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setMaxResults: (value) => ipcRenderer.invoke('max-results:set', value),
   getTheme: () => ipcRenderer.invoke('theme:get'),
   setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
+  setLanguage: (language) => ipcRenderer.invoke('language:set', language),
   openFile: (filePath) => ipcRenderer.invoke('file:open', filePath),
   openFolder: (filePath) => ipcRenderer.invoke('file:show-in-folder', filePath),
   onIndexStatus: (callback) => {

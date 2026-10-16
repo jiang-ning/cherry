@@ -395,6 +395,7 @@ function selectLanguage(option) {
   setLanguageOpen(false);
   localStorage.setItem('language', option.dataset.value);
   changeLanguage(option.dataset.value);
+  window.electronAPI.setLanguage(option.dataset.value).catch(() => {});
 }
 
 const savedLanguage = localStorage.getItem('language') || 'en';
