@@ -87,10 +87,10 @@ function createTray() {
   tray.setToolTip('CherryQuery');
   tray.on('double-click', showMainWindow);
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: (translate('__open__') || 'Open') + ' CherryQuery', click: showMainWindow },
+    { label: 'CherryQuery', click: showMainWindow },
     { type: 'separator' },
     {
-      label: translate('__exit__') || 'Exit',
+      label: 'Exit',
       click: () => {
         isQuitting = true;
         app.quit();

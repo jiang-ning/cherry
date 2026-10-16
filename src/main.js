@@ -64,7 +64,7 @@ function describeIndex(status) {
     const note = status.initialIndexing
       ? (translate('__firsttime_indexing_newest_files_first__') || ' (first-time indexing, newest files first)')
       : status.idle ? '' : (translate('__older_files_are_indexed_when_the_computer_is_idle__') || ' (older files are indexed when the computer is idle)');
-    parts.push(`${status.pending.toLocaleString()} waiting${note}`);
+    parts.push(`${status.pending.toLocaleString()} ${translate('__waiting__') || 'waiting'} ${note}`);
   }
   if (status.scanning) parts.push(translate('__checking_for_changes__') || 'checking for changes');
   if (status.paused) parts.push(translate('__paused__') || 'paused');
@@ -363,11 +363,16 @@ function renderIndexPaths(paths) {
 const settingMenuItems = settingsPanel.querySelectorAll('.setting-menu-item');
 const settingItems = settingsPanel.querySelectorAll('.setting-item');
 
+let activeSettingIndex = 0;
+
 function showSettingItem(index) {
+  activeSettingIndex = index;
+  // In RTL the panes are laid out right-to-left, so slide in the opposite direction.
+  const direction = document.body.classList.contains('ar') ? 1 : -1;
   settingMenuItems.forEach((menuItem, i) => menuItem.classList.toggle('active', i === index));
   settingItems.forEach((item, i) => {
     item.classList.toggle('active', i === index);
-    item.style.transform = `translateX(${-index * 100}%)`;
+    item.style.transform = `translateX(${direction * index * 100}%)`;
   });
 }
 
@@ -419,6 +424,7 @@ function changeLanguage(languageCode) {
   if(languageCode !== 'ar' && document.body.classList.contains('ar')) {
     document.body.classList.remove('ar');
   }
+  showSettingItem(activeSettingIndex);
   
   elementsInnerText.forEach(el => {
     el.innerText = Languages[languageCode][el.dataset['langInnertext']] || el.innerText;
@@ -459,7 +465,7 @@ const maximumResultsValue = document.getElementById('maximumResultsValue');
 let savedMaximumResults = Number(maximumResults.value);
 function renderMaximumResults() {
   const { min, max, value } = maximumResults;
-  maximumResults.style.setProperty('--fill', `${((value - min) / (max - min)) * 100}%`);
+  maximumResults.style.setProperty('--fill-ratio', (value - min) / (max - min));
   maximumResultsValue.textContent = value;
 }
 maximumResults.addEventListener('input', renderMaximumResults);
@@ -486,7 +492,7 @@ const maximumSizeValues = document.getElementById('maximumSizeValue');
 let savedMaximumSize = Number(maximumSize.value);
 function renderMaximumSize() {
   const { min, max, value } = maximumSize;
-  maximumSize.style.setProperty('--fill', `${((value - min) / (max - min)) * 100}%`);
+  maximumSize.style.setProperty('--fill-ratio', (value - min) / (max - min));
   maximumSizeValues.textContent = value;
 }
 maximumSize.addEventListener('input', renderMaximumSize);
