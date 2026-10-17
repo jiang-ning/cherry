@@ -10,7 +10,7 @@
 
 The author takes security bugs in CherryQuery seriously. I appreciate your efforts to responsibly disclose your findings, and will make every effort to acknowledge your contributions.
 
-To report a security issue, please use the Github Security Advisory ["Report a Vulnerability"](https://github.com/jiang-ning/cherry/security/advisories/new) tab. Please do not report security vulnerabilities through public Github issues.
+To report a security issue, please use the GitHub Security Advisory ["Report a Vulnerability"](https://github.com/jiang-ning/cherry/security/advisories/new) tab. Please do not report security vulnerabilities through public GitHub issues.
 
 Because CherryQuery reads and indexes the contents of local files, reports involving the following are especially welcome:
 

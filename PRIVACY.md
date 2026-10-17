@@ -1,6 +1,6 @@
 # Privacy Policy for CherryQuery
 
-CherryQuery is a desktop app that searches the contaents of files on your computer for a keyword. We prioritize the privacy and security of our users. This Privacy Policy explains what data CherryQuery handles and how it is protected. Please read this policy carefully to understand our practices.
+CherryQuery is a desktop app that searches the contents of files on your computer for a keyword. We prioritize the privacy and security of our users. This Privacy Policy explains what data CherryQuery handles and how it is protected. Please read this policy carefully to understand our practices.
 
 1. Collection of Personal Information:
 CherryQuery does not collect personal information from its users. We do not gather any data that can directly identify you, such as your name, address, email, or phone number.
@@ -14,14 +14,14 @@ Your preferences, such as indexed folders, file types, excluded folders, theme, 
 4. Deleting Your Data:
 You can remove all indexed content at any time with the **Clear Index** option in the app. Uninstalling CherryQuery and deleting its application data folder removes the index and settings completely.
 
-5. Thired-party Sharing:
+5. Third-party Sharing:
 CherryQuery does not share any information with third parties. CherryQuery does not include analytics, telemetry, advertising, or crash reporting services.
 
 6. Network Access:
-CherryQuery does not send your files, search queries, or index to any server. If update checks are enabled, CherryQuery may contact Github to check for and download new versions of the app; no personal data or file contents are included in these requests.
+CherryQuery does not send your files, search queries, or index to any server. If update checks are enabled, CherryQuery may contact GitHub to check for and download new versions of the app; no personal data or file contents are included in these requests.
 
 7. License:
-CherryQuery is proprietary software provided under an End User License Agreement (EULA). For full details regarding your rights and restrications when using CherryQuery, please refer to the [LICENSE](LICENSE) file included with this software.
+CherryQuery is proprietary software provided under an End User License Agreement (EULA). For full details regarding your rights and restrictions when using CherryQuery, please refer to the [LICENSE](LICENSE) file included with this software.
 
 8. Security Measures:
 Because all data stays on your device, the security of your index depends on the security of your computer and user account. The index may contain text from your documents, so we recommend protecting your device with a password and disk encryption. Password-protected documents are not read or indexed.
