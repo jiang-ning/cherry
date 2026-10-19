@@ -10,6 +10,9 @@
       <stop stop-color="#FFFFFF"/>
       <stop offset="1" stop-color="#FFFDF8"/>
     </linearGradient>
+    <clipPath id="progress-clip">
+      <rect x="49" y="294" width="300" height="8" rx="4"/>
+    </clipPath>
   </defs>
 
   <path fill="url(#background)" d="M0 0h640v400H0z"/>
@@ -36,9 +39,9 @@
       <path d="M418 144h52m-52 15h39m-39 48h52m-52 15h32" stroke-opacity=".25" stroke-width="5"/>
     </g>
     <g transform="rotate(9 500 174)">
-      <path d="M456 98h60131 31v111a12 12 0 0 1-12 12h-79a12 12 0 0 1-12-12V110a12 12 0 0 1 12-12Z" fill="url(#paper)" stroke-opacity=".35" stroke-width="2"/>
-      <path d="M516 98v23a8 8 0 0 0 8 8h23" fill="#FFF0BD" stroke-opactiy=".35" stroke-width="2"/>
-      <path d="M464 152h59m-59 16h43" stroke-opactiy=".25" stroke-width="5"/>
+      <path d="M456 98h60l31 31v111a12 12 0 0 1-12 12h-79a12 12 0 0 1-12-12V110a12 12 0 0 1 12-12Z" fill="url(#paper)" stroke-opacity=".35" stroke-width="2"/>
+      <path d="M516 98v23a8 8 0 0 0 8 8h23" fill="#FFF0BD" stroke-opacity=".35" stroke-width="2"/>
+      <path d="M464 152h59m-59 16h43" stroke-opacity=".25" stroke-width="5"/>
       <rect x="458" y="185" width="69" height="19" rx="5" fill="#FFDA6A" stroke="none"/>
       <path d="M465 194h43" stroke-width="4"/>
       <path d="M464 220h50" stroke-opacity=".25" stroke-width="5"/>
@@ -56,6 +59,12 @@
     <text x="49" y="221" font-size="18">Find the words. Find the file.</text>
     <circle cx="55" cy="272" r="4" fill="#185C50"/>
     <text x="70" y="277" font-size="14" font-weight="600" fill="#185C50">Installing CherryQuery</text>
+    <rect x="49" y="294" width="300" height="8" rx="4" fill="#185C50" fill-opacity=".12"/>
+    <g clip-path="url(#progress-clip)">
+      <rect x="-110" y="294" width="110" height="8" rx="4" fill="#185C50">
+        <animate attributeName="x" from="-110" to="349" dur="1.6s" repeatCount="indefinite"/>
+      </rect>
+    </g>
     <path d="M48 326h544" stroke="#4A2638" stroke-opacity=".12"/>
     <g stroke="#185C50" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
       <rect x="49" y="347" width="12" height="10" rx="2"/>

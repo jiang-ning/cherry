@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell, dialog, nativeTheme } = require('electron');
+if (require('electron-squirrel-startup')) app.quit();
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs/promises');
@@ -74,7 +75,7 @@ const createWindow = () => {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 
 };
 

@@ -1,6 +1,7 @@
 module.exports = {
   packagerConfig: {
-    asar: true
+    asar: true,
+    icon: './src/images/logo.ico'
   },
   rebuildConfig: {
     onlyModules: []
