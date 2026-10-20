@@ -317,8 +317,8 @@ button.primary:hover {
 }
 
 .custom-select-arrow {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
   flex: none;
   border-right: 2px solid currentColor;
   border-bottom: 2px solid currentColor;

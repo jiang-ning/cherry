@@ -383,7 +383,14 @@ settingMenuItems.forEach((menuItem, index) => {
 const languageList = document.getElementById('languageList');
 const languageTrigger = languageList.querySelector('.custom-select-trigger');
 const languageValue = languageList.querySelector('.custom-select-value');
-const languageOptions = [...languageList.querySelectorAll('.custom-select-options li')];
+const languageOptionsList = document.getElementById('languageOptions');
+Object.entries(Languages).forEach(([code, language]) => {
+  const item = document.createElement('li');
+  item.dataset.value = code;
+  item.textContent = language.name;
+  languageOptionsList.appendChild(item);
+});
+const languageOptions = [...languageOptionsList.querySelectorAll('li')];
 
 function setLanguageOpen(open) {
   languageList.classList.toggle('open', open);
@@ -399,7 +406,8 @@ function selectLanguage(option) {
 }
 
 const savedLanguage = localStorage.getItem('language') || 'en';
-const savedLanguageOption = languageOptions.find((item) => item.dataset.value === savedLanguage);
+const savedLanguageOption = languageOptions.find((item) => item.dataset.value === savedLanguage)
+  || languageOptions.find((item) => item.dataset.value === 'en');
 if (savedLanguageOption) selectLanguage(savedLanguageOption);
 
 languageTrigger.addEventListener('click', () => {
@@ -419,30 +427,34 @@ function changeLanguage(languageCode) {
   const elementsTitle = document.querySelectorAll('[data-lang-title]');
   const elementsPlaceholder = document.querySelectorAll('[data-lang-placeholder]');
 
-  if(languageCode === 'ar') {
+  if (!Object.hasOwn(Languages, languageCode)) languageCode = 'en';
+  const words = Languages[languageCode];
+
+  if (languageCode === 'ar') {
     document.body.classList.add('ar');
   }
-  if(languageCode !== 'ar' && document.body.classList.contains('ar')) {
+  if (languageCode !== 'ar' && document.body.classList.contains('ar')) {
     document.body.classList.remove('ar');
   }
   showSettingItem(activeSettingIndex);
   
   elementsInnerText.forEach(el => {
-    el.innerText = Languages[languageCode][el.dataset['langInnertext']] || el.innerText;
+    el.innerText = words[el.dataset['langInnertext']] || el.innerText;
   });
   elementsInnerHTML.forEach(el => {
-    el.innerHTML = Languages[languageCode][el.dataset['langInnerhtml']] || el.innerHTML;
+    el.innerHTML = words[el.dataset['langInnerhtml']] || el.innerHTML;
   });
   elementsTitle.forEach(el => {
-    el.title = Languages[languageCode][el.dataset['langTitle']] || el.title;
+    el.title = words[el.dataset['langTitle']] || el.title;
   });
   elementsPlaceholder.forEach(el => {
-    el.placeholder = Languages[languageCode][el.dataset['langPlaceholder']] || el.placeholder;
+    el.placeholder = words[el.dataset['langPlaceholder']] || el.placeholder;
   });
 }
 
 function translate(wordsCode) {
-  const currentLanguage = localStorage.getItem('language') || 'en';
+  const savedCode = localStorage.getItem('language');
+  const currentLanguage = Object.hasOwn(Languages, savedCode) ? savedCode : 'en';
   return Languages[currentLanguage][wordsCode] || false;
 }
 
