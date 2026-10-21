@@ -21,10 +21,14 @@
   "license": "SEE LICENSE IN LICENSE",
   "description": "A desktop app that searches the contents of files in your Documents folder for a keyword.",
   "dependencies": {
+    "@kenjiuno/msgreader": "^1.29.0",
     "better-sqlite3": "^13.0.3",
     "electron-squirrel-startup": "^1.0.1",
     "electron-updater": "^6.8.9",
-    "officeparser": "^8.0.0"
+    "fflate": "^0.8.3",
+    "libarchive-wasm": "^1.2.0",
+    "officeparser": "^8.0.0",
+    "postal-mime": "^4.0.11"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.2",

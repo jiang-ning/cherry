@@ -184,7 +184,7 @@ async function indexLoop() {
       }
 
       try {
-        const text = await extractText(file.path, file.size, maxFileSizeMB);
+        const text = await extractText(file.path, file.size, maxFileSizeMB, extensions);
         if (text === null) index.markSkipped(file.id);
         else index.saveContent(file, text);
       } catch {

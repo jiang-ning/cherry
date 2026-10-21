@@ -6,7 +6,7 @@ const fs = require('fs/promises');
 const { randomUUID } = require('crypto');
 const { Worker } = require('worker_threads');
 const { 
-  DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS, DEFAULT_MAX_FILE_SIZE_MB, MIN_FILE_SIZE_MB, MAX_FILE_SIZE_MB
+  DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS, DEFAULT_MAX_FILE_SIZE_MB, LEGACY_DEFAULT_EXTENSIONS, MIN_FILE_SIZE_MB, MAX_FILE_SIZE_MB
 } = require('./search');
 const { Languages } = require('./lang');
 
@@ -75,7 +75,7 @@ const createWindow = () => {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Open the DevTools.
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 
 };
 
@@ -390,6 +390,11 @@ async function loadSettings() {
   indexExtensions = Array.isArray(settings.indexExtensions)
     ? settings.indexExtensions.map(normalizeExtension).filter(Boolean)
     : [...DEFAULT_EXTENSIONS];
+  // Add defaults introduced since the settings were saved, without restoring ones the user removed.
+  const knownDefaults = Array.isArray(settings.defaultExtensions) ? settings.defaultExtensions : LEGACY_DEFAULT_EXTENSIONS;
+  indexExtensions.push(...DEFAULT_EXTENSIONS.filter(
+    (extension) => !knownDefaults.includes(extension) && !indexExtensions.includes(extension)
+  ));
   excludedFolders = Array.isArray(settings.excludedFolders)
     ? settings.excludedFolders.map(normalizeFolderName).filter(Boolean)
     : [...DEFAULT_EXCLUDED_FOLDERS];
@@ -405,7 +410,7 @@ async function loadSettings() {
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused, language }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, defaultExtensions: DEFAULT_EXTENSIONS, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused, language }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
