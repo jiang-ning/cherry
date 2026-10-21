@@ -6,7 +6,7 @@ CherryQuery is a desktop app that searches the contents of files on your compute
 CherryQuery does not collect personal information from its users. We do not gather any data that can directly identify you, such as your name, address, email, or phone number.
 
 2. Your Files and the Search Index:
-To provide fast search, CherryQuery reads files in the folders you choose to index (by default, your Documents folder) and extracts their text on your device. The extracted text, file names, paths, and modification dates are stored in a local SQLite index (`file-index.sqlite`) in CherryQuery's application data folder. Your files and their contents are never uploaded or transmitted anywhere.
+To provide fast search, CherryQuery reads files in the folders you choose to index (by default, your Documents folder) and extracts their text on your device, including the text of email messages and their attachments and of files inside archives such as ZIP, 7z, RAR and tar. The extracted text, file names, paths, and modification dates are stored in a local SQLite index (`file-index.sqlite`) in CherryQuery's application data folder. Your files and their contents are never uploaded or transmitted anywhere.
 
 3. Settings:
 Your preferences, such as indexed folders, file types, excluded folders, theme, language, and hotkey, are stored locally in a `settings.json` file in CherryQuery's application data folder and in the app's local storage. They never leave your device.
