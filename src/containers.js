@@ -29,7 +29,7 @@ function htmlToText(html) {
   return String(html)
     .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<(script|style|head)\b[\s\S]*?<\/\1\s*>/gi, ' ')
-    .replace(/<[^>]*/g, ' ')
+    .replace(/<[^>]*>/g, ' ')
     .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, code) => {
       if (code[0] !== '#') return HTML_ENTITIES[code.toLowerCase()] ?? entity;
       const point = code[1].toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
@@ -65,7 +65,7 @@ class TextCollector {
 
   add(...values) {
     for (const value of values) {
-      if (!value || this.null) continue;
+      if (!value || this.full) continue;
       this.parts.push(value);
       this.length += value.length + 1;
     }
@@ -135,7 +135,7 @@ async function readMsgText(buffer, context, readNested) {
     );
 
     for (const attachment of fields.attachments ?? []) {
-      // Hidden attachments are images embeded in the HTML body.
+      // Hidden attachments are images embedded in the HTML body.
       if (collector.full || attachment.attachmentHidden) continue;
       const name = attachment.fileName || attachment.fileNameShort || attachment.name;
       if (attachment.innerMsgContent) {
@@ -184,7 +184,7 @@ async function readZipText(buffer, context, readNested, isSupported) {
   // Returning false from the filter lists the entries without decompressing them.
   fflate.unzipSync(buffer, {
     filter: (file) => {
-      if (file.name.endWith('/') || file.name.startWith('__MACOSX/')) return false;
+      if (file.name.endsWith('/') || file.name.startsWith('__MACOSX/')) return false;
       const readable = (file.compression === ZIP_STORED || file.compression === ZIP_DEFLATED)
         && file.originalSize > 0 && file.originalSize <= context.maxBytes
         && isSupported(path.posix.basename(file.name));
@@ -194,7 +194,7 @@ async function readZipText(buffer, context, readNested, isSupported) {
     }
   });
 
-  const collector = new TextCollector(context, maxChars);
+  const collector = new TextCollector(context.maxChars);
   let index = 0;
   while (index < wanted.length && !collector.full) {
     const batch = [];

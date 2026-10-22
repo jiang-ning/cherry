@@ -20,7 +20,7 @@ A desktop app that searches the contents of files in your Documents folder for a
 - Documents (Word, Excel, PowerPoint, PDF, OpenDocument, RTF) up to 50MB are searched; text file stay at 5MB. Larger files are skipped.
 - Older `.doc`, `.xls`, and `.ppt` formats aren't supported.
 - Email attachments and files inside archives are searched only when their extension is in the indexed file extensions list and they are within the maximum file size. Archives and emails inside each other are opened up to 3 levels deep, and up to 1,000 files are read from each archive. A match opens the email or archive, not the attachment or file inside it.
-- Encrypted ZIP archives, and ZIP archives that use compression other than Deflate, can't be read; only the names of the files inside are searched. Encrypted files inside 7z and RAR archives are searched by name only, and 7z and RAR archives with encryped file names can't be read at all.
+- Encrypted ZIP archives, and ZIP archives that use compression other than Deflate, can't be read; only the names of the files inside are searched. Encrypted files inside 7z and RAR archives are searched by name only, and 7z and RAR archives with encrypted file names can't be read at all.
 - Scanned PDFs without a text layer won't match, because text recognition (OCR) is not used.
 - Password-protected documents can't be read and are counted as unreadable.
 - Text files are read as UTF-8; files in other encodings may not match.
