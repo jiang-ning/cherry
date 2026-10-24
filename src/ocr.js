@@ -1,5 +1,5 @@
 // Text recognition (OCR) for scanned PDFs and images with the OCR engine built into Windows
-// (Windows.Media.Ocr). PDF pages are rendered with Windows.Data.Pdf. Everything runs on the computer.
+// (Windows.Media.Ocr). PDF pages are rendered with Windows.Data.Pdf. Everything runs on computer.
 // The WinRT APIs are reached through one long-lived Windows PowerShell 5.1 process, which reads one
 // request per line on stdin and answers one line on stdout. Paths and text are sent as base64.
 const { spawn } = require('node:child_process');
@@ -11,15 +11,15 @@ const STARTUP_TIMEOUT_MS = 30 * 1000;
 const REQUEST_TIMEOUT_MS = 5 * 60 * 1000;
 // The PowerShell process is closed after this long without requests to free its memory.
 const IDLE_EXIT_MS = 60 * 1000;
-// Thumbnail pixel size; the result list shows it at helf size for high-DPI screens.
+// Thumbnail pixel size; the result list shows it at half size for high-DPI screens.
 const THUMBNAIL_WIDTH = 480;
-const THUMBNAIL_HEIGHT = 100;
+const THUMBNAIL_HEIGHT = 160;
 const MAX_THUMBNAIL_UPSCALE = 2;
 const MAX_CACHED_THUMBNAILS = 200;
 
 const SCRIPT = `
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName systemPreferences.Runtime.WindowsRuntime
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
 $null = [Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
 $null = [Windows.Storage.Streams.InMemoryRandomAccessStream, Windows.Storage.Streams, ContentType = WindowsRuntime]
 $null = [Windows.Graphics.Imaging.BitmapDecoder, Windows.Graphics, ContentType = WindowsRuntime]
@@ -28,7 +28,7 @@ $null = [Windows.Data.Pdf.PdfDocument, Windows.Data.Pdf, ContentType = WindowsRu
 
 $asTaskMethods = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 }
 $asTaskOperation = $asTaskMethods | Where-Object { $_.GetParameters()[0].ParameterType.Name -like 'IAsyncOperation?1' } | Select-Object -First 1
-$asTaskAction = $asTaskMethods | Where-Object { $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction?1' } | Select-Object -First 1
+$asTaskAction = $asTaskMethods | Where-Object { $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction' } | Select-Object -First 1
 
 function Wait-Operation($operation, [Type]$resultType) {
   $task = $asTaskOperation.MakeGenericMethod($resultType).Invoke($null, @($operation))
@@ -83,7 +83,7 @@ function Get-PdfPageBitmap($document, $index) {
   $stream = New-Object Windows.Storage.Streams.InMemoryRandomAccessStream
   try {
     $size = $page.Size
-    $scale = [Math]::Min($pdfRenderScale, $maxDimension / [Math]::Max(1.0, [Math]::Max($size.width, $size.Height)))
+    $scale = [Math]::Min($pdfRenderScale, $maxDimension / [Math]::Max(1.0, [Math]::Max($size.Width, $size.Height)))
     $options = New-Object Windows.Data.Pdf.PdfPageRenderOptions
     $options.DestinationWidth = [uint32][Math]::Max(1, [Math]::Floor($size.Width * $scale))
     $options.DestinationHeight = [uint32][Math]::Max(1, [Math]::Floor($size.Height * $scale))
@@ -190,7 +190,7 @@ function Get-Thumbnail($filePath, $kind, $index, [double]$x, [double]$y, [double
     $transform.Bounds = $bounds
     Wait-Action ($encoder.FlushAsync())
     $memory = New-Object System.IO.MemoryStream
-    [System.IO.WindowsRuntimeSystemExtensions]::AsStreamForRead($stream.GetInputStreamAt(0)).CopyTo($memory)
+    [System.IO.WindowsRuntimeStreamExtensions]::AsStreamForRead($stream.GetInputStreamAt(0)).CopyTo($memory)
     return [Convert]::ToBase64String($memory.ToArray())
   } finally {
     $stream.Dispose()
@@ -203,7 +203,7 @@ function Write-Response($id, $status, $text) {
   [Console]::Out.Flush()
 }
 
-[Console]::Out.WriteLine('ready' + $engine.RecognizerLanguage.LanguageTag)
+[Console]::Out.WriteLine('ready ' + $engine.RecognizerLanguage.LanguageTag)
 [Console]::Out.Flush()
 
 # ReadLine returns null when the app closes stdin or exits, which ends this process.
@@ -357,7 +357,7 @@ function parseRecognized(payload) {
     if (!word) continue;
     const page = pages.length - 1;
     const line = `${page}:${fields[1]}`;
-    const separator = !test ? '' : line === previousLine ? wordSeparator : ' ';
+    const separator = !text ? '' : line === previousLine ? wordSeparator : ' ';
     previousLine = line;
     const start = text.length + separator.length;
     text += separator + word;
@@ -366,7 +366,7 @@ function parseRecognized(payload) {
   return { text, layout: { pages, words } };
 }
 
-// Returns { text, layout } for an image ('image') or a PDF's rendered pages ('pdf').
+// Returns { text, layout } for an image ('image') or a PDF's rendered pages ('pdf'),
 // or null when Windows OCR isn't available. Throws when the file can't be read.
 async function recognize(filePath, kind) {
   const payload = await request(`${kind} ${encodePath(filePath)} ${MAX_OCR_PAGES}`);

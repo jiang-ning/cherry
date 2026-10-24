@@ -158,7 +158,7 @@ async function extractText(filePath, size, maxFileSizeMB = DEFAULT_MAX_FILE_SIZE
     if (raw === null) return null;
   }
 
-  const text = raw.replace(/^\uFEFF/, '').replace(/\s+/g, ' ').trim();
+  let text = raw.replace(/^\uFEFF/, '').replace(/\s+/g, ' ').trim();
   let layout = null;
   // OCR text is already whitespace-normalized, so word offsets stay valid after the join.
   if (recognized?.text) {

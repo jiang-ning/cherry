@@ -114,7 +114,7 @@ class FileIndex {
     this.layoutStatement = this.db.prepare(`
       SELECT f.modified_ms AS modifiedMs, f.content, o.layout
       FROM files f JOIN ocr_layouts o ON o.file_id = f.id
-      WHERE f.path = ? AND f.state = ${STATE_INDEXED}  
+      WHERE f.path = ? AND f.state = ${STATE_INDEXED}
     `);
     this.requeueSkippedStatement = this.db.prepare(
       `UPDATE files SET state = ${STATE_PENDING} WHERE state = ${STATE_SKIPPED} AND size > @oldBytes AND size <= @newBytes`
@@ -176,7 +176,7 @@ class FileIndex {
     return this.nextPendingStatement.get();
   }
 
-  saveContent(file, content) {
+  saveContent(file, content, layout = null) {
     this.db.transaction(() => {
       const { changes } = this.saveContentStatement.run({
         id: file.id, modifiedMs: file.modifiedMs, size: file.size, content
@@ -192,7 +192,7 @@ class FileIndex {
     this.deleteLayoutStatement.run(id);
   }
 
-  // Find the page box of the OCR'd words at content offet `start`. A match in the PDF text layer is
+  // Finds the page box of the OCR'd words at content offset `start`. A match in the PDF text layer is
   // looked up again in the OCR text that follows it.
   ocrRegion(filePath, start, length) {
     const row = this.layoutStatement.get(filePath);
@@ -239,7 +239,7 @@ class FileIndex {
     if (this.db.prepare("SELECT 1 FROM meta WHERE key = 'ocr_requeued'").get()) return;
     const requeue = this.db.prepare(`
       UPDATE files SET state = ${STATE_PENDING}
-      WHERE (state = ${STATE_SKIPPED} OR length(content) < @minChars) AND lower(path) LIKE @pattern  
+      WHERE (state = ${STATE_SKIPPED} OR length(content) < @minChars) AND lower(path) LIKE @pattern
     `);
     this.db.transaction(() => {
       for (const extension of extensions) requeue.run({ minChars, pattern: `%${extension}` });

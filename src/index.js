@@ -10,7 +10,7 @@ const {
   OCR_SUPPORTED
 } = require('./search');
 const { Languages } = require('./lang');
-// Separate from the worker's OCR process. so thumbnails don't wait behind indexing.
+// Separate from the worker's OCR process, so thumbnails don't wait behind indexing.
 let ocr;
 
 const IDLE_THRESHOLD_SECONDS = 60;
