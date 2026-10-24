@@ -226,7 +226,41 @@ function renderFile(file) {
   preview.append(highlightedPreview(file.preview, file.highlights));
 
   item.append(header, location, preview);
+  if (file.ocrMatch) {
+    thumbnailLoaders.set(item, () => loadOcrThumbnail(item, file));
+    thumbnailObserver.observe(item);
+  }
   return item;
+}
+
+// Thumbnails are rendered on demand, so they load only once a result scrolls into view.
+const thumbnailLoaders = new WeakMap();
+const thumbnailObserver = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    thumbnailObserver.unobserve(entry.target);
+    thumbnailLoaders.get(entry.target)?.();
+  }
+}, { root: fileList, rootMargin: '200px 0px' });
+
+async function loadOcrThumbnail(item, file) {
+  let thumbnail;
+  try {
+    thumbnail = await window.electronAPI.getOcrThumbnail(file.path, file.ocrMatch.start, file.ocrMatch.length);
+  } catch {
+    return;
+  }
+  if (!thumbnail || !item.isConnected) return;
+  const frame = document.createElement('div');
+  frame.className = 'ocr-thumb';
+  const image = document.createElement('img');
+  image.alt = '';
+  image.src = thumbnail.src;
+  const mark = document.createElement('span');
+  mark.className = 'ocr-thumb-mark';
+  for (const side of ['left', 'top', 'width', 'height']) mark.style[side] = `${thumbnail.mark[side]}%`;
+  frame.append(image, mark);
+  item.append(frame);
 }
 
 async function runSearch() {

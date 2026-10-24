@@ -1,3 +1,16 @@
+# Changelog
+
+## [Unreleased]
+
+### Supported files
+- Email files (`.eml` and Outlook `.msg`): the subject, sender, recipients, body, and attachment names and contents are searched.
+- ZIP archives (`.zip`): the names and contents of the files inside are searched, including archives and emails nested up to 3 levels deep.
+- 7-ZIP (`.7z`), RAR (`.rar`, RAR 4 and RAR 5), tar (`.tar`) and gzip (`.tgz`, `.tar.gz`, `.gz`) archives are searched the same way as ZIP archives. A `.gz` file that isn't tar archive is searched as the file it contains.
+- Text recognition (OCR) on Windows for scanned PDFs and images (`.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`), using the OCR engine built into Windows. OCR runs on your computer; nothing is uploaded. Previously skipped scanned PDFs are indexed again automatically.
+- Search results for scanned PDFs and images show a thumbnail of the part of the page where the match was recognized, with the match highlighted.
+
+- Existing installs get the new extensions added to the indexed file extensions automatically.
+
 ## [1.0.0] - 2026-10-19
 
 First public release of CherryQuery, a desktop app that searches inside the files in your Documents folder. Files are read and indexed on your computer and are never uploaded.

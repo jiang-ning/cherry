@@ -2,7 +2,9 @@ const { parentPort, workerData } = require('node:worker_threads');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { FileIndex } = require('./file-index');
-const { MB, extractText, isSupportedFile, isIgnoredDirectory } = require('./search');
+const {
+  MB, IMAGE_EXTENSIONS, OCR_SUPPORTED, SCANNED_PDF_MIN_CHARS, extractText, isSupportedFile, isIgnoredDirectory
+} = require('./search');
 
 const RESCAN_INTERVAL_MS = 10 * 60 * 1000;
 const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -15,6 +17,7 @@ let extensions = new Set(workerData.extensions);
 let excludedFolders = new Set(workerData.excludedFolders.map((name) => name.toLowerCase()));
 let maxFileSizeMB = workerData.maxFileSizeMB;
 index.applyMaxFileSize(maxFileSizeMB * MB);
+if (OCR_SUPPORTED) index.requeueForOcr(['.pdf', ...IMAGE_EXTENSIONS], SCANNED_PDF_MIN_CHARS);
 let rescanRequested = false;
 let wakeScan = null;
 let idle = false;
@@ -184,9 +187,9 @@ async function indexLoop() {
       }
 
       try {
-        const text = await extractText(file.path, file.size, maxFileSizeMB, extensions);
-        if (text === null) index.markSkipped(file.id);
-        else index.saveContent(file, text);
+        const extracted = await extractText(file.path, file.size, maxFileSizeMB, extensions);
+        if (extracted === null) index.markSkipped(file.id);
+        else index.saveContent(file, extracted.text, extracted.layout);
       } catch {
         index.markSkipped(file.id);
       }
@@ -260,6 +263,16 @@ parentPort.on('message', (message) => {
       parentPort.postMessage({ type: 'clear-response', requestId: message.requestId, error: error.message });
     }
     postStatus(true);
+    return;
+  }
+
+  if (message.type === 'ocr-region') {
+    try {
+      const region = index.ocrRegion(message.filePath, message.start, message.length);
+      parentPort.postMessage({ type: 'ocr-region-response', requestId: message.requestId, region });
+    } catch (error) {
+      parentPort.postMessage({ type: 'ocr-region-response', requestId: message.requestId, error: error.message });
+    }
     return;
   }
 

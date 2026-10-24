@@ -6,9 +6,12 @@ const fs = require('fs/promises');
 const { randomUUID } = require('crypto');
 const { Worker } = require('worker_threads');
 const { 
-  DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS, DEFAULT_MAX_FILE_SIZE_MB, LEGACY_DEFAULT_EXTENSIONS, MIN_FILE_SIZE_MB, MAX_FILE_SIZE_MB
+  DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS, DEFAULT_MAX_FILE_SIZE_MB, LEGACY_DEFAULT_EXTENSIONS, MIN_FILE_SIZE_MB, MAX_FILE_SIZE_MB,
+  OCR_SUPPORTED
 } = require('./search');
 const { Languages } = require('./lang');
+// Separate from the worker's OCR process. so thumbnails don't wait behind indexing.
+let ocr;
 
 const IDLE_THRESHOLD_SECONDS = 60;
 const IMAGES_DIR = path.join(__dirname, 'images');
@@ -175,6 +178,20 @@ ipcMain.handle('search:start', (_event, keyword) => {
 });
 
 ipcMain.handle('index:status', () => indexStatus);
+
+// Only files with an OCR layout in the index get a region, so arbitrary paths are never opened.
+ipcMain.handle('ocr:thumbnail', async (_event, filePath, start, length) => {
+  if (!OCR_SUPPORTED || !indexWorker || typeof filePath !== 'string') return null;
+  if (!Number.isInteger(start) || !Number.isInteger(length) || start < 0 || length <= 0) return null;
+  const requestId = randomUUID();
+  const region = await new Promise((resolve, reject) => {
+    pendingRequests.set(requestId, { resolve, reject });
+    indexWorker.postMessage({ type: 'ocr-region', requestId, filePath, start, length });
+  });
+  if (!region) return null;
+  ocr ??= require('./ocr');
+  return ocr.renderMatchThumbnail(filePath, region);
+});
 ipcMain.handle('index:location', () => getDatabasePath());
 
 ipcMain.handle('index:set-paused', async (_event, paused) => {
@@ -448,6 +465,15 @@ function handleWorkerMessage(message) {
   if (message.type === 'status') {
     indexStatus = message.status;
     mainWindow?.webContents.send('index:status', indexStatus);
+    return;
+  }
+
+  if (message.type === 'ocr-region-response') {
+    const pending = pendingRequests.get(message.requestId);
+    if (!pending) return;
+    pendingRequests.delete(message.requestId);
+    if (message.error) pending.reject(new Error(message.error));
+    else pending.resolve(message.region);
     return;
   }
 

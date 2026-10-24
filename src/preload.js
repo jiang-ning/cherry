@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setLanguage: (language) => ipcRenderer.invoke('language:set', language),
   openFile: (filePath) => ipcRenderer.invoke('file:open', filePath),
   openFolder: (filePath) => ipcRenderer.invoke('file:show-in-folder', filePath),
+  getOcrThumbnail: (filePath, start, length) => ipcRenderer.invoke('ocr:thumbnail', filePath, start, length),
   onIndexStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('index:status', listener);

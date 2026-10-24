@@ -655,6 +655,31 @@ button.primary:hover {
   border-radius: 2px;
 }
 
+/* Region of a scanned PDF or image where OCR found the match. The image is rendered at 2x. */
+.ocr-thumb {
+  position: relative;
+  display: inline-block;
+  margin-top: 6px;
+  line-height: 0;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.ocr-thumb img {
+  max-width: 240px;
+  max-height: 80px;
+}
+
+.ocr-thumb-mark {
+  position: absolute;
+  background: rgba(255, 210, 60, 0.35);
+  outline: 1px solid rgba(230, 170, 0, 0.9);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
 .open-file {
   display: inline-block;
   background: url('./images/file.svg') no-repeat center center;
