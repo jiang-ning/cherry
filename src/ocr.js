@@ -1,5 +1,5 @@
 // Text recognition (OCR) for scanned PDFs and images with the OCR engine built into Windows
-// (Windows.Media.Ocr). PDF pages are rendered with Windows.Data.Pdf. Everything runs on computer.
+// (Windows.Media.Ocr). PDF pages are rendered with Windows.Data.Pdf. Everything runs this computer.
 // The WinRT APIs are reached through one long-lived Windows PowerShell 5.1 process, which reads one
 // request per line on stdin and answers one line on stdout. Paths and text are sent as base64.
 const { spawn } = require('node:child_process');

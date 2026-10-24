@@ -39,7 +39,7 @@ const DEFAULT_EXTENSIONS = [
 const LEGACY_DEFAULT_EXTENSIONS = [...TEXT_EXTENSIONS, ...DOCUMENT_EXTENSIONS];
 
 function isSupportedFile(name, extensions) {
-  // Office writes "~$name.docx" lock files while a docment is open.
+  // Office writes "~$name.docx" lock files while a document is open.
   if (name.startsWith('~$')) return false;
   return extensions.has(path.extname(name).toLowerCase());
 }
