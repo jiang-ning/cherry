@@ -3,13 +3,17 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { FileIndex } = require('./file-index');
 const {
-  MB, IMAGE_EXTENSIONS, SCANNED_PDF_MIN_CHARS, extractText, isSupportedFile, isIgnoredDirectory
+  MB, IMAGE_EXTENSIONS, extractText, isSupportedFile, isIgnoredDirectory
 } = require('./search');
 
 const RESCAN_INTERVAL_MS = 10 * 60 * 1000;
 const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const STATUS_INTERVAL_MS = 1000;
 const WAIT_MS = 2000;
+// Bump when OCR changes, so files read with the old OCR, or skipped by it, are read again.
+const OCR_ENGINE = 'tesseract.js-1';
+// PDFs with less text than this may hold scanned pages that weren't OCR'd before.
+const OCR_REQUEUE_MAX_CHARS = 2000;
 
 const index = new FileIndex(workerData.databasePath);
 let ocr;
@@ -18,7 +22,7 @@ let extensions = new Set(workerData.extensions);
 let excludedFolders = new Set(workerData.excludedFolders.map((name) => name.toLowerCase()));
 let maxFileSizeMB = workerData.maxFileSizeMB;
 index.applyMaxFileSize(maxFileSizeMB * MB);
-index.requeueForOcr(['.pdf', ...IMAGE_EXTENSIONS], SCANNED_PDF_MIN_CHARS);
+index.requeueForOcr(OCR_ENGINE, ['.pdf', ...IMAGE_EXTENSIONS], OCR_REQUEUE_MAX_CHARS);
 let rescanRequested = false;
 let wakeScan = null;
 let idle = false;

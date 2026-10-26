@@ -1,12 +1,14 @@
 // Text recognition (OCR) for scanned PDFs and images with Tesseract (tesseract.js, WebAssembly).
 // PDF pages are rendered with PDF.js, images are decoded with @napi-rs/canvas, and TIFF with UTIF.
-// Everything runs on this computer: the language data ships with the app, so nothing is download.
+// Everything runs on this computer: the language data ships with the app, so nothing is downloaded.
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const MAX_OCR_PAGES = 50;
+// A PDF page with fewer non-space characters of text than this is treated as scanned and OCR'd.
+const MIN_PAGE_TEXT_CHARS = 100;
 // Longest side of a page image in pixels; larger pages are scaled down to keep OCR time reasonable.
-const MAX_PAGE_DIMNSION = 4000;
+const MAX_PAGE_DIMENSION = 4000;
 // TIFF pages are decoded to full-size RGBA first, so very large ones are refused.
 const MAX_TIFF_PIXELS = 100 * 1000 * 1000;
 // PDF pages are rendered at 300 DPI (PDF units are 1/72 inch), which suits Tesseract.
@@ -45,7 +47,7 @@ function createPageCanvas(width, height) {
 
 // Thumbnails rely on this giving the same pixel size every time a page is read.
 function drawPage(source, width, height) {
-  const scale = Math.min(1, MAX_PAGE_DIMNSION / Math.max(width, height, 1));
+  const scale = Math.min(1, MAX_PAGE_DIMENSION / Math.max(width, height, 1));
   const { page, context } = createPageCanvas(width * scale, height * scale);
   context.drawImage(source, 0, 0, page.width, page.height);
   return page;
@@ -66,18 +68,21 @@ async function openPdf(filePath) {
   }).promise;
 }
 
-async function renderPdfPage(document, index) {
-  const pdfPage = await document.getPage(index + 1);
-  try {
-    const size = pdfPage.getViewport({ scale: 1 });
-    const scale = Math.min(PDF_RENDER_SCALE, MAX_PAGE_DIMNSION / Math.max(size.width, size.height, 1));
-    const viewport = pdfPage.getViewport({ scale });
-    const { page, context } = createPageCanvas(viewport.width, viewport.height);
-    await pdfPage.render({ canvasContext: context, viewport }).promise;
-    return page;
-  } finally {
-    pdfPage.cleanup();
-  }
+async function renderPdfPage(pdfPage) {
+  const size = pdfPage.getViewport({ scale: 1 });
+  const scale = Math.min(PDF_RENDER_SCALE, MAX_PAGE_DIMENSION / Math.max(size.width, size.height, 1));
+  const viewport = pdfPage.getViewport({ scale });
+  const { page, context } = createPageCanvas(viewport.width, viewport.height);
+  await pdfPage.render({ canvasContext: context, viewport }).promise;
+  return page;
+}
+
+// Scanners and scanning apps often add a little text, such as a watermark, to each scanned page.
+async function hasTextLayer(pdfPage) {
+  const { items } = await pdfPage.getTextContent();
+  let chars = 0;
+  for (const item of items) chars += (item.str ?? '').replace(/\s+/g, '').length;
+  return chars >= MIN_PAGE_TEXT_CHARS;
 }
 
 function decodeTiffPage(buffer, ifds, index) {
@@ -93,13 +98,22 @@ function decodeTiffPage(buffer, ifds, index) {
   return drawPage(page, page.width, page.height);
 }
 
-// Yields pages as canvases, starting at zero-based page `first`, at most `count` of them.
-async function* readPages(filePath, kind, first, count) {
+// Yields { index, page } with each page as a canvas, starting at zero-based page `first`, at most
+// `count` of them. With `scannedOnly`, PDF pages that have a text layer are passed over.
+async function* readPages(filePath, kind, first, count, scannedOnly = false) {
   if (kind === 'pdf') {
     const document = await openPdf(filePath);
     try {
       const last = Math.min(document.numPages, first + count);
-      for (let index = first; index < last; index ++) yield await renderPdfPage(document, index);
+      for (let index = first; index < last; index++) {
+        const pdfPage = await document.getPage(index + 1);
+        try {
+          if (scannedOnly && await hasTextLayer(pdfPage)) continue;
+          yield { index, page: await renderPdfPage(pdfPage) };
+        } finally {
+          pdfPage.cleanup();
+        }
+      }
     } finally {
       await document.destroy();
     }
@@ -111,12 +125,12 @@ async function* readPages(filePath, kind, first, count) {
     UTIF ??= require('utif');
     const ifds = UTIF.decode(buffer);
     const last = Math.min(ifds.length, first + count);
-    for (let index = first; index < last; index ++) yield decodeTiffPage(buffer, ifds, index);
+    for (let index = first; index < last; index++) yield { index, page: decodeTiffPage(buffer, ifds, index) };
     return;
   }
   if (first > 0) return;
   const image = await canvas().loadImage(buffer);
-  yield drawPage(image, image.width, image.height);
+  yield { index: 0, page: drawPage(image, image.width, image.height) };
 }
 
 function getWorker() {
@@ -153,7 +167,7 @@ async function recognizePage(page) {
   const timeout = new Promise((_resolve, reject) => {
     timer = setTimeout(() => {
       stopWorker();
-      reject(new Error('OCR time out.'));
+      reject(new Error('OCR timed out.'));
     }, PAGE_TIMEOUT_MS);
   });
   try {
@@ -164,9 +178,10 @@ async function recognizePage(page) {
   }
 }
 
-// Returns { text, layout } for an image ('image') or a PDF's rendered pages ('pdf'), where
-// `layout.pages` holds each page's pixel size and `layout.words` is flat: page, start, end, x, y,
-// with, height for each word, with start and end its offsets in `text`. Throws when the file can't be read.
+// Returns { text, layout } for an image ('image') or the scanned pages of a PDF ('pdf'), where
+// `layout.pages` holds each OCR'd page's pixel size by page index and `layout.words` is flat: 
+// page, start, end, x, y, width, height for each word, with start and end its offsets in `text`. 
+// Throws when the file can't be read.
 async function recognize(filePath, kind) {
   activeJobs += 1;
   clearTimeout(idleTimer);
@@ -174,9 +189,8 @@ async function recognize(filePath, kind) {
     const pages = [];
     const words = [];
     let text = '';
-    for await (const page of readPages(filePath, kind, 0, MAX_OCR_PAGES)) {
-      const pageIndex = pages.length;
-      pages.push([page.width, page.height]);
+    for await (const { index: pageIndex, page } of readPages(filePath, kind, 0, MAX_OCR_PAGES, kind === 'pdf')) {
+      pages[pageIndex] = [page.width, page.height];
       for (const block of await recognizePage(page)) {
         for (const paragraph of block.paragraphs) {
           for (const line of paragraph.lines) {
@@ -230,7 +244,7 @@ async function renderMatchThumbnail(filePath, region) {
   const outHeight = Math.max(1, Math.round(crop.height * scale));
   const kind = path.extname(filePath).toLowerCase() === '.pdf' ? 'pdf' : 'image';
   let source = null;
-  for await (const page of readPages(filePath, kind, region.page, 1)) source = page;
+  for await (const { page } of readPages(filePath, kind, region.page, 1)) source = page;
   // A file changed since it was indexed can render at another size, so its word boxes no longer fit.
   if (!source || source.width !== region.pageWidth || source.height !== region.pageHeight) return null;
   const target = canvas().createCanvas(outWidth, outHeight);

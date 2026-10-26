@@ -19,8 +19,6 @@ const EMAIL_EXTENSIONS = new Set(['.eml', '.msg']);
 const ARCHIVE_EXTENSIONS = new Set(['.zip', '.7z', '.rar', '.tar', '.tgz', '.gz']);
 // Read with OCR (see ocr.js).
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.tif', '.tiff']);
-// A PDF whose text layer has fewer non-space characters than this is treated as scanned and OCR'd.
-const SCANNED_PDF_MIN_CHARS = 100;
 // How many levels of attachments and archive entries are opened, e.g. a ZIP inside an email.
 const MAX_NESTING_DEPTH = 3;
 const DEFAULT_EXCLUDED_FOLDERS = [
@@ -63,13 +61,13 @@ async function readDocumentText(source, fileType = null) {
   return String(value ?? '');
 }
 
-// Returns { text, layout } from OCR
+// Returns { text, layout } from OCR.
 function recognize(filePath, kind) {
   ocr ??= require('./ocr');
   return ocr.recognize(filePath, kind);
 }
 
-// Uses the PDF's text layer, and OCR when there is little or no text layer (a scanned PDF).
+// Uses the PDF's text layer, plus OCR of its scanned pages (page with little or no text layer.
 async function readPdfText(filePath) {
   let text = '';
   let parseError = null;
@@ -78,13 +76,13 @@ async function readPdfText(filePath) {
   } catch (error) {
     parseError = error;
   }
-  if (text.replace(/\s+/g, '').length >= SCANNED_PDF_MIN_CHARS) return { text, recognized: null };
 
   let recognized = null;
   try {
     recognized = await recognize(filePath, 'pdf');
-  } catch {
-    // Keep whatever the text layer had.
+  } catch (error) {
+    // Keep whatever the text layer had. A PDF neither reader can open is reported by the caller.
+    if (!parseError) console.warn(`OCR failed for ${filePath}:`, error);
   }
   if (recognized === null && parseError) throw parseError;
   return { text, recognized };
@@ -256,7 +254,6 @@ module.exports = {
   DEFAULT_MAX_FILE_SIZE_MB,
   IMAGE_EXTENSIONS,
   LEGACY_DEFAULT_EXTENSIONS,
-  SCANNED_PDF_MIN_CHARS,
   MIN_FILE_SIZE_MB,
   MAX_FILE_SIZE_MB,
   MB,

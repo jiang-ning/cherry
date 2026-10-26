@@ -234,16 +234,20 @@ class FileIndex {
     };
   }
 
-  // Runs once: re-queues images and PDFs with little text, which were indexed before OCR was supported.
-  requeueForOcr(extensions, minChars) {
-    if (this.db.prepare("SELECT 1 FROM meta WHERE key = 'ocr_requeued'").get()) return;
+  // Runs once per OCR engine: re-queues files skipped or read by an earlier engine, and files with
+  // little text, which may hold pages that weren't OCR'd.
+  requeueForOcr(engine, extensions, maxChars) {
+    const current = this.db.prepare("SELECT value FROM meta WHERE key = 'ocr_engine'").get();
+    if (current?.value === engine) return;
     const requeue = this.db.prepare(`
       UPDATE files SET state = ${STATE_PENDING}
-      WHERE (state = ${STATE_SKIPPED} OR length(content) < @minChars) AND lower(path) LIKE @pattern
+      WHERE (state = ${STATE_SKIPPED} OR length(content) < @maxChars
+        OR id IN (SELECT file_id FROM ocr_layouts))
+        AND lower(path) LIKE @pattern
     `);
     this.db.transaction(() => {
-      for (const extension of extensions) requeue.run({ minChars, pattern: `%${extension}` });
-      this.db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('ocr_requeued', '1')").run();
+      for (const extension of extensions) requeue.run({ maxChars, pattern: `%${extension}` });
+      this.db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('ocr_engine', ?)").run(engine);
     })();
   }
 
