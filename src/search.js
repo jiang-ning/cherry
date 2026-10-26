@@ -17,9 +17,8 @@ const DOCUMENT_EXTENSIONS = new Set([
 ]);
 const EMAIL_EXTENSIONS = new Set(['.eml', '.msg']);
 const ARCHIVE_EXTENSIONS = new Set(['.zip', '.7z', '.rar', '.tar', '.tgz', '.gz']);
-// Read with Windows OCR, so they are only indexed by default on Windows.
+// Read with OCR (see ocr.js).
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.tif', '.tiff']);
-const OCR_SUPPORTED = process.platform === 'win32';
 // A PDF whose text layer has fewer non-space characters than this is treated as scanned and OCR'd.
 const SCANNED_PDF_MIN_CHARS = 100;
 // How many levels of attachments and archive entries are opened, e.g. a ZIP inside an email.
@@ -32,8 +31,7 @@ let officeParser;
 let containers;
 let ocr;
 const DEFAULT_EXTENSIONS = [
-  ...TEXT_EXTENSIONS, ...DOCUMENT_EXTENSIONS, ...EMAIL_EXTENSIONS, ...ARCHIVE_EXTENSIONS,
-  ...(OCR_SUPPORTED ? IMAGE_EXTENSIONS : [])
+  ...TEXT_EXTENSIONS, ...DOCUMENT_EXTENSIONS, ...EMAIL_EXTENSIONS, ...ARCHIVE_EXTENSIONS, ...IMAGE_EXTENSIONS
 ];
 // The defaults before email and archive support, used to add the new defaults to saved settings.
 const LEGACY_DEFAULT_EXTENSIONS = [...TEXT_EXTENSIONS, ...DOCUMENT_EXTENSIONS];
@@ -65,9 +63,8 @@ async function readDocumentText(source, fileType = null) {
   return String(value ?? '');
 }
 
-// Returns { text, layout } from OCR, or null when Windows OCR isn't available.
+// Returns { text, layout } from OCR
 function recognize(filePath, kind) {
-  if (!OCR_SUPPORTED) return Promise.resolve(null);
   ocr ??= require('./ocr');
   return ocr.recognize(filePath, kind);
 }
@@ -143,7 +140,6 @@ async function extractText(filePath, size, maxFileSizeMB = DEFAULT_MAX_FILE_SIZE
     raw = await readDocumentText(filePath);
   } else if (IMAGE_EXTENSIONS.has(extension)) {
     recognized = await recognize(filePath, 'image');
-    if (recognized === null) return null;
     raw = '';
   } else {
     const context = {
@@ -260,7 +256,6 @@ module.exports = {
   DEFAULT_MAX_FILE_SIZE_MB,
   IMAGE_EXTENSIONS,
   LEGACY_DEFAULT_EXTENSIONS,
-  OCR_SUPPORTED,
   SCANNED_PDF_MIN_CHARS,
   MIN_FILE_SIZE_MB,
   MAX_FILE_SIZE_MB,

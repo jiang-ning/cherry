@@ -3,7 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { FileIndex } = require('./file-index');
 const {
-  MB, IMAGE_EXTENSIONS, OCR_SUPPORTED, SCANNED_PDF_MIN_CHARS, extractText, isSupportedFile, isIgnoredDirectory
+  MB, IMAGE_EXTENSIONS, SCANNED_PDF_MIN_CHARS, extractText, isSupportedFile, isIgnoredDirectory
 } = require('./search');
 
 const RESCAN_INTERVAL_MS = 10 * 60 * 1000;
@@ -12,12 +12,13 @@ const STATUS_INTERVAL_MS = 1000;
 const WAIT_MS = 2000;
 
 const index = new FileIndex(workerData.databasePath);
+let ocr;
 let roots = workerData.roots;
 let extensions = new Set(workerData.extensions);
 let excludedFolders = new Set(workerData.excludedFolders.map((name) => name.toLowerCase()));
 let maxFileSizeMB = workerData.maxFileSizeMB;
 index.applyMaxFileSize(maxFileSizeMB * MB);
-if (OCR_SUPPORTED) index.requeueForOcr(['.pdf', ...IMAGE_EXTENSIONS], SCANNED_PDF_MIN_CHARS);
+index.requeueForOcr(['.pdf', ...IMAGE_EXTENSIONS], SCANNED_PDF_MIN_CHARS);
 let rescanRequested = false;
 let wakeScan = null;
 let idle = false;
@@ -266,13 +267,19 @@ parentPort.on('message', (message) => {
     return;
   }
 
-  if (message.type === 'ocr-region') {
-    try {
+  if (message.type === 'ocr-thumbnail') {
+    const reply = (fields) => parentPort.postMessage({
+      type: 'ocr-thumbnail-response', requestId: message.requestId, ...fields
+    });
+    (async () => {
       const region = index.ocrRegion(message.filePath, message.start, message.length);
-      parentPort.postMessage({ type: 'ocr-region-response', requestId: message.requestId, region });
-    } catch (error) {
-      parentPort.postMessage({ type: 'ocr-region-response', requestId: message.requestId, error: error.message });
-    }
+      if (!region) return null;
+      ocr ??= require('./ocr');
+      return ocr.renderMatchThumbnail(message.filePath, region);
+    })().then(
+      (thumbnail) => reply({ thumbnail }),
+      (error) => reply({ error: String(error?.message ?? error) })
+    );
     return;
   }
 

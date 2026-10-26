@@ -22,13 +22,18 @@
   "description": "A desktop app that searches the contents of files in your Documents folder for a keyword.",
   "dependencies": {
     "@kenjiuno/msgreader": "^1.29.0",
+    "@napi-rs/canvas": "1.0.13",
+    "@tesseract.js-data/eng": "^1.0.0",
     "better-sqlite3": "^13.0.3",
     "electron-squirrel-startup": "^1.0.1",
     "electron-updater": "^6.8.9",
     "fflate": "^0.8.3",
     "libarchive-wasm": "^1.2.0",
     "officeparser": "^8.0.0",
-    "postal-mime": "^4.0.11"
+    "pdfjs-dist": "6.4.299",
+    "postal-mime": "^4.0.11",
+    "tesseract.js": "^7.0.0",
+    "utif": "^3.1.0"
   },
   "devDependencies": {
     "@electron-forge/cli": "^7.11.2",
