@@ -89,7 +89,7 @@ const OcrLanguages = {
   ori: 'Odia',
   pan: 'Punjabi',
   pol: 'Polish',
-  por: 'Protuguese',
+  por: 'Portuguese',
   pus: 'Pashto',
   que: 'Quechua',
   ron: 'Romanian',

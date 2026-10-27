@@ -150,7 +150,7 @@ async function downloadedOcrLanguages() {
 }
 
 // `code` must be a key of OcrLanguages, which keeps the URL and file name safe.
-function downloadedOcrLanguage(code) {
+function downloadOcrLanguage(code) {
   if (!ocrDownloads.has(code)) {
     const download = (async () => {
       const response = await net.fetch(OCR_DATA_URL.replaceAll('{code}', code), {
@@ -189,7 +189,7 @@ ipcMain.handle('ocr-languages:add', async (_event, code) => {
   if (typeof code !== 'string' || !Object.hasOwn(OcrLanguages, code)) throw new Error('Invalid language.');
   if (ocrLanguages.includes(code)) return ocrLanguages;
   if (!BUNDLED_LANGUAGES.has(code) && !(await downloadedOcrLanguages()).includes(code)) {
-    await downloadedOcrLanguage(code);
+    await downloadOcrLanguage(code);
   }
   // The selection may have changed during the download.
   return ocrLanguages.includes(code) ? ocrLanguages : applyOcrLanguages([...ocrLanguages, code]);

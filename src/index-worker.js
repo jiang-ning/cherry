@@ -22,7 +22,7 @@ let extensions = new Set(workerData.extensions);
 let excludedFolders = new Set(workerData.excludedFolders.map((name) => name.toLowerCase()));
 let maxFileSizeMB = workerData.maxFileSizeMB;
 index.applyMaxFileSize(maxFileSizeMB * MB);
-applyOcrLanguages(workerData.corLanguages);
+applyOcrLanguages(workerData.ocrLanguages);
 let rescanRequested = false;
 let wakeScan = null;
 let idle = false;
