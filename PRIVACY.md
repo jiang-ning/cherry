@@ -9,7 +9,7 @@ CherryQuery does not collect personal information from its users. We do not gath
 To provide fast search, CherryQuery reads files in the folders you choose to index (by default, your Documents folder) and extracts their text on your device, including the text of email messages and their attachments and of files inside archives such as ZIP, 7z, RAR and tar. The extracted text, file names, paths, and modification dates are stored in a local SQLite index (`file-index.sqlite`) in CherryQuery's application data folder. Your files and their contents are never uploaded or transmitted anywhere.
 
 3. Settings:
-Your preferences, such as indexed folders, file types, excluded folders, theme, language, and hotkey, are stored locally in a `settings.json` file in CherryQuery's application data folder and in the app's local storage. They never leave your device.
+Your preferences, such as indexed folders, file types, excluded folders, theme, language, text recognition languages, and hotkey, are stored locally in a `settings.json` file in CherryQuery's application data folder and in the app's local storage. They never leave your device.
 
 4. Deleting Your Data:
 You can remove all indexed content at any time with the **Clear Index** option in the app. Uninstalling CherryQuery and deleting its application data folder removes the index and settings completely.
@@ -18,7 +18,7 @@ You can remove all indexed content at any time with the **Clear Index** option i
 CherryQuery does not share any information with third parties. CherryQuery does not include analytics, telemetry, advertising, or crash reporting services.
 
 6. Network Access:
-CherryQuery does not send your files, search queries, or index to any server. If update checks are enabled, CherryQuery may contact GitHub to check for and download new versions of the app; no personal data or file contents are included in these requests.
+CherryQuery does not send your files, search queries, or index to any server. If update checks are enabled, CherryQuery may contact GitHub to check for and download new versions of the app; no personal data or file contents are included in these requests. When you add a text recognition language that doesn't ship with the app, CherryQuery downloads its language data once from the jsDelivr CDN (cdn.jsdelivr.net) and stores it in its application data folder; the request contains only the name of the language file.
 
 7. License:
 CherryQuery is proprietary software provided under an End User License Agreement (EULA). For full details regarding your rights and restrictions when using CherryQuery, please refer to the [LICENSE](LICENSE) file included with this software.

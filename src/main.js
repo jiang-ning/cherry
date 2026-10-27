@@ -1,3 +1,5 @@
+const { OcrLanguages } = require("./ocr-languages");
+
 const keywordInput = document.getElementById('keyword');
 const keywordHighlight = document.getElementById('keywordHighlight');
 const fileList = document.getElementById('fileList');
@@ -436,7 +438,7 @@ function selectLanguage(option) {
   setLanguageOpen(false);
   localStorage.setItem('language', option.dataset.value);
   changeLanguage(option.dataset.value);
-  window.electronAPI.setLanguage(option.dataset.value).catch(() => {});
+  window.electronAPI.setLanguage(option.dataset.value).then(() => loadOcrLanguages()).catch(() => {});
 }
 
 const savedLanguage = localStorage.getItem('language') || 'en';
@@ -484,6 +486,7 @@ function changeLanguage(languageCode) {
   elementsPlaceholder.forEach(el => {
     el.placeholder = words[el.dataset['langPlaceholder']] || el.placeholder;
   });
+  document.dispatchEvent(new Event('app-language-change'));
 }
 
 function translate(wordsCode) {
@@ -591,6 +594,99 @@ searchFileNames.addEventListener('change', async () => {
     searchFileNames.checked = !searchFileNames.checked;
   }
 });
+
+const ocrSelectedList = document.getElementById('ocrSelectedList');
+const ocrAvailableList = document.getElementById('ocrAvailableList');
+const ocrLanguageStatus = document.getElementById('ocrLanguageStatus');
+// `available` holds languages that are bundled or already downloaded.
+let ocrLanguages = { selected: ['eng'], available: [] };
+// The highlighted item in each box, which the - and + buttons act on.
+let pickedSelectedOcr = null;
+let pickedAvailableOcr = null;
+let ocrBusy = false;
+
+function renderOcrList(list, codes, picked, note, onPick, onActivate, isLocked = () => false) {
+  list.replaceChildren(...codes.map((code) => {
+    const item = document.createElement('div');
+    item.className = 'index-path-item';
+    item.classList.toggle('selected', code === picked);
+    item.classList.toggle('locked', isLocked(code));
+    item.textContent = OcrLanguages[code] ?? code;
+    const extra = note(code);
+    if (extra) {
+      const span = document.createElement('span');
+      span.className = 'ocr-language-note';
+      span.textContent = extra;
+      item.append(span);
+    }
+    item.addEventListener('click', () => onPick(code));
+    item.addEventListener('dblclick', () => onActivate(code));
+    return item;
+  }));
+}
+
+function renderOcrLanguages() {
+  const download = translate('__download__') || 'download';
+  renderOcrList(ocrSelectedList, ocrLanguages.selected, pickedSelectedOcr,
+    () => '',
+    (code) => {
+      // English can't be removed, so it can't be picked either.
+      pickedSelectedOcr = code === 'eng' ? null : code;
+      renderOcrLanguages();
+    },
+    removeOcrLanguage,
+    (code) => code === 'eng');
+  const unselected = Object.keys(OcrLanguages)
+    .filter((code) => !ocrLanguages.selected.includes(code))
+    .sort((a, b) => OcrLanguages[a].localeCompare(OcrLanguages[b]));
+  renderOcrList(ocrAvailableList, unselected, pickedAvailableOcr,
+    (code) => (ocrLanguages.available.includes(code) ? '' : `(${download})`),
+    (code) => {
+      pickedAvailableOcr = code;
+      renderOcrLanguages();
+    },
+    addOcrLanguage);
+}
+
+async function addOcrLanguage(code) {
+  if (!code || ocrBusy) return;
+  const needsDownload = !ocrLanguages.available.includes(code);
+  ocrBusy = true;
+  ocrLanguageStatus.textContent = needsDownload
+    ? `${OcrLanguages[code]}: ${translate('__downloading__') || 'Downloading...'}`
+    : '';
+  try {
+    ocrLanguages.selected = await window.electronAPI.addOcrLanguage(code);
+    if (needsDownload) ocrLanguages.available.push(code);
+    ocrLanguageStatus.textContent = '';
+    pickedAvailableOcr = null;
+  } catch {
+    ocrLanguageStatus.textContent = `${OcrLanguages[code]}: ${translate('__download_failed__')
+      || 'Download failed. Check your internet connection and try again.'}`;
+  }
+  ocrBusy = false;
+  renderOcrLanguages();
+}
+
+async function removeOcrLanguage(code) {
+  if (!code || code === 'eng' || ocrBusy) return;
+  ocrLanguages.selected = await window.electronAPI.removeOcrLanguage(code);
+  pickedSelectedOcr = null;
+  renderOcrLanguages();
+}
+
+function loadOcrLanguages() {
+  return window.electronAPI.getOcrLanguages().then((value) => {
+    ocrLanguages = value;
+    renderOcrLanguages();
+  });
+}
+
+document.getElementById('ocrLanguageAdd').addEventListener('click', () => addOcrLanguage(pickedAvailableOcr));
+document.getElementById('ocrLanguageRemove').addEventListener('click', () => removeOcrLanguage(pickedSelectedOcr));
+document.addEventListener('app-language-change', renderOcrLanguages);
+renderOcrLanguages();
+loadOcrLanguages();
 
 document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
   const welcome = document.getElementById('welcome');

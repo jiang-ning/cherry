@@ -41,6 +41,7 @@
         <div class="setting-nav">
           <span class="setting-menu-item active" data-lang-innertext="__general__">General</span>
           <span class="setting-menu-item" data-lang-innertext="__index__">Index</span>
+          <span class="setting-menu-item" data-lang-innertext="__search__">Search</span>
           <span class="setting-menu-item" data-lang-innertext="__hotkeys__">Hotkeys</span>
           <span class="setting-menu-seperator">|</span>
           <span id="btnWelcomeScreen" class="setting-menu-item" data-lang-innertext="__welcome__">Welcome</span>
@@ -107,31 +108,6 @@
             </div>
           </div><!-- end of launch at startup -->
           </div><!-- end of row 1 -->
-
-          <div class="general-row general-row-search">
-          <div class="setting-section">
-            <div class="setting-name" data-lang-innertext="__search__">Search:</div>
-            <div class="setting-contents search-options">
-              <label class="switch">
-                <input id="caseSensitive" type="checkbox" />
-                <span class="switch-slider"></span>
-                <span class="switch-text" data-lang-innertext="__case_sensitive__">Case sensitive</span>
-              </label>
-              <label class="switch">
-                <input id="searchFileNames" type="checkbox" />
-                <span class="switch-slider"></span>
-                <span class="switch-text" data-lang-innertext="__search_file_names__">Search file names</span>
-              </label>
-              <div class="range-slider">
-                <input id="maximumResults" type="range" min="100" max="1000" step="100" value="500" />
-                <div>
-                  <span id="maximumResultsValue" class="range-value">500</span>
-                  <span class="switch-text" data-lang-innertext="__maximum_search_results__">maximum search results</span>
-                </div>
-              </div><!-- end of max result range -->
-            </div>
-          </div>
-          </div><!-- end of row 2 -->
 
           <div class="general-row">
             <div class="setting-section">
@@ -200,6 +176,30 @@
             </div>
           </div>
         </div><!-- end of Index -->
+
+        <!-- Search section -->
+        <div class="setting-item">
+          <div class="setting-contents search-options">
+            <label class="switch">
+              <input id="caseSensitive" type="checkbox" />
+              <span class="switch-slider"></span>
+              <span class="switch-text" data-lang-innertext="__case_sensitive__">Case sensitive</span>
+            </label>
+            <label class="switch">
+              <input id="searchFileNames" type="checkbox" />
+              <span class="switch-slider"></span>
+              <span class="switch-text" data-lang-innertext="__search_file_names__">Search file names</span>
+            </label>
+            <div class="range-slider">
+              <input id="maximumResults" type="range" min="100" max="1000" step="100" value="500" />
+              <div>
+                <span id="maximumResultsValue" class="range-value">500</span>
+                <span class="switch-text" data-lang-innertext="__maximum_search_results__">maximum search results</span>
+              </div>
+            </div><!-- end of max result range -->
+          </div>
+        </div>
+        <!-- end of Search section -->
 
         <div class="setting-item">
           <div class="setting-contents">
@@ -278,6 +278,7 @@
   </div>
   <!-- end of container -->
   <script src="./lang.js"></script>
+  <script src="./ocr-languages.js"></script>
   <script src="./main.js"></script>
 </body>
 

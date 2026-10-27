@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell, dialog, nativeTheme } = require('electron');
+const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell, dialog, nativeTheme, net } = require('electron');
 if (require('electron-squirrel-startup')) app.quit();
 // const { autoUpdater } = require('electron-updater');
 const path = require('path');
@@ -9,9 +9,16 @@ const {
   DEFAULT_EXCLUDED_FOLDERS, DEFAULT_EXTENSIONS, DEFAULT_MAX_FILE_SIZE_MB, LEGACY_DEFAULT_EXTENSIONS, MIN_FILE_SIZE_MB, MAX_FILE_SIZE_MB
 } = require('./search');
 const { Languages } = require('./lang');
+const { OcrLanguages } = require('./ocr-languages');
+const { BUNDLED_LANGUAGES } = require('./ocr');
 
 const IDLE_THRESHOLD_SECONDS = 60;
 const IMAGES_DIR = path.join(__dirname, 'images');
+// The same files the @tesseract.js-data packages ship, pinned to their only version.
+const OCR_DATA_URL = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/{code}@1.0.0/4.0.0_best_int/{code}.traineddata.gz';
+const OCR_DATA_SUFFIX = '.traineddata.gz';
+const MAX_OCR_DATA_BYTES = 64 * 1024 * 1024;
+const OCR_DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
 
 let mainWindow;
 let tray;
@@ -32,6 +39,9 @@ let searchFileNames = false;
 let maxResults = 500;
 let indexPaused = false;
 let language = 'en';
+// Tesseract codes from ocr-languages.js; English is always first.
+let ocrLanguages = ['eng'];
+const ocrDownloads = new Map();
 
 function translate(wordsCode) {
   return (Languages[language] || Languages.en)[wordsCode] || false;
@@ -117,7 +127,75 @@ ipcMain.handle('language:set', async (_event, value) => {
   language = value;
   updateTrayMenu();
   await saveSettings();
+  // The app language is preset for text recognition; the user can remove it again.
+  const ocrCode = Languages[language].ocr;
+  if (!ocrLanguages.includes(ocrCode)) await applyOcrLanguages([...ocrLanguages, ocrCode]);
   return language;
+});
+
+// Holds downloaded language data; the index worker also combines languages here for OCR.
+function getOcrDataDir() {
+  return path.join(app.getPath('userData'), 'ocr-languages');
+}
+
+const ocrDataFile = (code) => path.join(getOcrDataDir(), code + OCR_DATA_SUFFIX);
+
+async function downloadedOcrLanguages() {
+  const names = await fs.readdir(getOcrDataDir()).catch(() => []);
+  return names.filter((name) => name.endsWith(OCR_DATA_SUFFIX))
+    .map((name) => name.slice(0, -OCR_DATA_SUFFIX.length))
+    .filter((code) => Object.hasOwn(OcrLanguages, code));
+}
+
+// `code` must be a key of OcrLanguages, which keeps the URL and file name safe.
+function downloadedOcrLanguage(code) {
+  if (!ocrDownloads.has(code)) {
+    const download = (async () => {
+      const response = await net.fetch(OCR_DATA_URL.replaceAll('{code}', code), {
+        signal: AbortSignal.timeout(OCR_DOWNLOAD_TIMEOUT_MS)
+      });
+      if (!response.ok) throw new Error(`Download failed (HTTP ${response.status}).`);
+      if (Number(response.headers.get('content-length')) > MAX_OCR_DATA_BYTES) throw new Error('Download too large.');
+      const data = Buffer.from(await response.arrayBuffer());
+      // Language data is gzip-compressed, so anything else isn't language data.
+      if (data.length > MAX_OCR_DATA_BYTES || data[0] !== 0x1f || data[1] !== 0x8b) {
+        throw new Error('The downloaded language data is not valid.');
+      }
+      await fs.mkdir(getOcrDataDir(), { recursive: true });
+      const partial = `${ocrDataFile(code)}.download`;
+      await fs.writeFile(partial, data);
+      await fs.rename(partial, ocrDataFile(code));
+    })().finally(() => ocrDownloads.delete(code));
+    ocrDownloads.set(code, download);
+  }
+  return ocrDownloads.get(code);
+}
+
+async function applyOcrLanguages(list) {
+  ocrLanguages = ['eng', ...list.filter((code) => code !== 'eng')];
+  await saveSettings();
+  indexWorker?.postMessage({ type: 'set-ocr-languages', languages: ocrLanguages });
+  return ocrLanguages;
+}
+
+ipcMain.handle('ocr-languages:get', async () => ({
+  selected: ocrLanguages,
+  available: [...new Set([...BUNDLED_LANGUAGES, ...await downloadedOcrLanguages()])]
+}));
+
+ipcMain.handle('ocr-languages:add', async (_event, code) => {
+  if (typeof code !== 'string' || !Object.hasOwn(OcrLanguages, code)) throw new Error('Invalid language.');
+  if (ocrLanguages.includes(code)) return ocrLanguages;
+  if (!BUNDLED_LANGUAGES.has(code) && !(await downloadedOcrLanguages()).includes(code)) {
+    await downloadedOcrLanguage(code);
+  }
+  // The selection may have changed during the download.
+  return ocrLanguages.includes(code) ? ocrLanguages : applyOcrLanguages([...ocrLanguages, code]);
+});
+
+ipcMain.handle('ocr-languages:remove', (_event, code) => {
+  if (code === 'eng' || !ocrLanguages.includes(code)) return ocrLanguages;
+  return applyOcrLanguages(ocrLanguages.filter((item) => item !== code));
 });
 
 ipcMain.on('minimize', (event) => {
@@ -418,10 +496,16 @@ async function loadSettings() {
   if (isValidMaxFileSize(settings.maxFileSizeMB)) maxFileSizeMB = settings.maxFileSizeMB;
   if (typeof settings.indexPaused === 'boolean') indexPaused = settings.indexPaused;
   if (Object.hasOwn(Languages, settings.language)) language = settings.language;
+  // Languages whose downloaded data is gone are dropped rather than failing OCR.
+  const downloaded = new Set(await downloadedOcrLanguages());
+  const saveOcr = Array.isArray(settings.ocrLanguages)
+    ? settings.ocrLanguages.filter((code) => BUNDLED_LANGUAGES.has(code) || downloaded.has(code))
+    : [Languages[language].ocr];
+  ocrLanguages = [...new Set(['eng', ...saveOcr])];
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, defaultExtensions: DEFAULT_EXTENSIONS, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused, language }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, defaultExtensions: DEFAULT_EXTENSIONS, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused, language, ocrLanguages }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
@@ -501,7 +585,9 @@ function startIndexWorker() {
       extensions: indexExtensions,
       excludedFolders,
       maxFileSizeMB,
-      paused: indexPaused
+      paused: indexPaused,
+      ocrLanguages,
+      ocrDataDir: getOcrDataDir()
     }
   });
   indexWorker.on('message', handleWorkerMessage);

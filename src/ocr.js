@@ -3,6 +3,7 @@
 // Everything runs on this computer: the language data ships with the app, so nothing is downloaded.
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { Languages } = require('./lang');
 
 const MAX_OCR_PAGES = 50;
 // A PDF page with fewer non-space characters of text than this is treated as scanned and OCR'd.
@@ -13,8 +14,6 @@ const MAX_PAGE_DIMENSION = 4000;
 const MAX_TIFF_PIXELS = 100 * 1000 * 1000;
 // PDF pages are rendered at 300 DPI (PDF units are 1/72 inch), which suits Tesseract.
 const PDF_RENDER_SCALE = 300 / 72;
-// Language data comes from the @tesseract.js-data/<language> package.
-const OCR_LANGUAGE = 'eng';
 const PAGE_TIMEOUT_MS = 2 * 60 * 1000;
 // The Tesseract worker is closed after this long without requests to free its memory.
 const IDLE_EXIT_MS = 60 * 1000;
@@ -31,6 +30,10 @@ let UTIF;
 let workerPromise = null;
 let activeJobs = 0;
 let idleTimer = null;
+let languages = ['eng'];
+let dataDir = null;
+// Set when the languages change while a page is being read; the worker restarts once it's done.
+let workerStale = false;
 const thumbnailCache = new Map();
 
 const canvas = () => (canvasModule ??= require('@napi-rs/canvas'));
@@ -136,12 +139,41 @@ async function* readPages(filePath, kind, first, count, scannedOnly = false) {
   yield { index: 0, page: drawPage(image, image.width, image.height) };
 }
 
+// Tesseract languages that ship with the app, as @tesseract.js-data packages: those of the app languages.
+const BUNDLED_LANGUAGES = new Set(Object.values(Languages).map((language) => language.ocr));
+
+// `list` holds Tesseract codes, checked by the caller; English is always included.
+// `directory` holds downloaded language data and is where several languages are combined.
+function configure(list, directory) {
+  const next = ['eng', ...list.filter((code) => code !== 'eng')];
+  dataDir = directory;
+  if (next.join('+') === languages.join('+')) return;
+  languages = next;
+  if (activeJobs) workerStale = true;
+  else stopWorker();
+}
+
+// tesseract.js reads every language from one folder, so bundled languages are copied next to the
+// downloaded ones in dataDir.
+async function languageDataPath() {
+  const sourceDir = (code) => path.join(packageDir(`@tesseract.js-data/${code}`), '4.0.0_best_int');
+  if (languages.length === 1) return sourceDir(languages[0]);
+  await fs.mkdir(dataDir, { recursive: true });
+  for (const code of languages.filter((item) => BUNDLED_LANGUAGES.has(item))) {
+    const source = path.join(sourceDir(code), `${code}.traineddata.gz`);
+    const target = path.join(dataDir, `${code}.traineddata.gz`);
+    const [from, to] = await Promise.all([fs.stat(source), fs.stat(target).catch(() => null)]);
+    if (to?.size !== from.size) await fs.copyFile(source, target);
+  }
+  return dataDir;
+}
+
 function getWorker() {
   workerPromise ??= (async () => {
     const { createWorker } = require('tesseract.js');
     // A local langPath and no cache keep tesseract.js from downloading or writing language data.
-    return createWorker(OCR_LANGUAGE, 1, {
-      langPath: path.join(packageDir(`@tesseract.js-data/${OCR_LANGUAGE}`), '4.0.0_best_int'),
+    return createWorker(languages.join('+'), 1, {
+      langPath: await languageDataPath(),
       cacheMethod: 'none'
     });
   })().catch((error) => {
@@ -212,6 +244,10 @@ async function recognize(filePath, kind) {
     return { text, layout: { pages, words } };
   } finally {
     activeJobs -= 1;
+    if (!activeJobs && workerStale) {
+      workerStale = false;
+      stopWorker();
+    }
     if (!activeJobs) scheduleIdleExit();
   }
 }
@@ -272,4 +308,4 @@ async function renderMatchThumbnail(filePath, region) {
   return thumbnail;
 }
 
-module.exports = { recognize, renderMatchThumbnail };
+module.exports = { BUNDLED_LANGUAGES, configure, recognize, renderMatchThumbnail };

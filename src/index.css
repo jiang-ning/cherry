@@ -228,7 +228,6 @@ button.primary:hover {
 .indexSelectionRow {
   display: flex;
   gap: 12px;
-  margin-bottom: 6px;
 }
 
 .indexSelectionRow > .indexSelections {
@@ -796,6 +795,7 @@ button.primary:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 24px;
+  margin: 12px 10px;
 }
 
 .setting-item.general .setting-name {
@@ -811,6 +811,30 @@ button.primary:hover {
 
 .search-options {
   grid-column: 2 / -1;
+}
+
+.ocr-language-row {
+  margin-top: 18px;
+}
+
+.ocr-language-row .index-list {
+  height: 140px;
+}
+
+.ocr-language-note {
+  margin-left: 6px;
+  color: #888;
+}
+
+.ocr-language-row .index-path-item.locked {
+  color: #999;
+  cursor: default;
+}
+
+.ocr-language-status {
+  min-height: 16px;
+  font-size: 12px;
+  color: #666;
 }
 
 .indexUsageInfo {
