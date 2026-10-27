@@ -48,7 +48,8 @@ const pause = (ms) => (ms ? sleep(ms) : new Promise((resolve) => setImmediate(re
 // `list` is checked by the main process, which also downloads the data of non-bundled languages.
 function applyOcrLanguages(list) {
   ocr.configure(list, workerData.ocrDataDir);
-  const languages = ['eng', ...list.filter((code) => code !== 'eng')].join('+');
+  const codes = Array.isArray(list) ? list.filter((code) => typeof code === 'string' && code !== 'eng') : [];
+  const languages = ['eng', ...codes].join('+');
   index.requeueForOcr(`${OCR_ENGINE}:${languages}`, ['.pdf', ...IMAGE_EXTENSIONS], OCR_REQUEUE_MAX_CHARS);
 }
 

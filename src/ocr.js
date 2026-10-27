@@ -145,7 +145,8 @@ const BUNDLED_LANGUAGES = new Set(Object.values(Languages).map((language) => lan
 // `list` holds Tesseract codes, checked by the caller; English is always included.
 // `directory` holds downloaded language data and is where several languages are combined.
 function configure(list, directory) {
-  const next = ['eng', ...list.filter((code) => code !== 'eng')];
+  const codes = Array.isArray(list) ? list.filter((code) => typeof code === 'string' && code !== 'eng') : [];
+  const next = ['eng', ...codes];
   dataDir = directory;
   if (next.join('+') === languages.join('+')) return;
   languages = next;
@@ -174,7 +175,10 @@ function getWorker() {
     // A local langPath and no cache keep tesseract.js from downloading or writing language data.
     return createWorker(languages.join('+'), 1, {
       langPath: await languageDataPath(),
-      cacheMethod: 'none'
+      cacheMethod: 'none',
+      // Without a handler tesseract.js rethrows job errors as uncaught, which ends the index worker.
+      // The failed job's promise still rejects, so its file is skipped as usual.
+      errorHandler: (error) => console.warn('Tesseract error', error)
     });
   })().catch((error) => {
     workerPromise = null;

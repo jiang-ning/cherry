@@ -595,13 +595,14 @@ searchFileNames.addEventListener('change', async () => {
 
 const ocrSelectedList = document.getElementById('ocrSelectedList');
 const ocrAvailableList = document.getElementById('ocrAvailableList');
-const ocrLanguageStatus = document.getElementById('ocrLanguageStatus');
 // `available` holds languages that are bundled or already downloaded.
 let ocrLanguages = { selected: ['eng'], available: [] };
 // The highlighted item in each box, which the - and + buttons act on.
 let pickedSelectedOcr = null;
 let pickedAvailableOcr = null;
 let ocrBusy = false;
+// Download progress or failure, shown in place of a language's note.
+const ocrStatus = new Map();
 
 function renderOcrList(list, codes, picked, note, onPick, onActivate, isLocked = () => false) {
   list.replaceChildren(...codes.map((code) => {
@@ -615,6 +616,7 @@ function renderOcrList(list, codes, picked, note, onPick, onActivate, isLocked =
       const span = document.createElement('span');
       span.className = 'ocr-language-note';
       span.textContent = extra;
+      span.title = extra;
       item.append(span);
     }
     item.addEventListener('click', () => onPick(code));
@@ -638,7 +640,10 @@ function renderOcrLanguages() {
     .filter((code) => !ocrLanguages.selected.includes(code))
     .sort((a, b) => OcrLanguages[a].localeCompare(OcrLanguages[b]));
   renderOcrList(ocrAvailableList, unselected, pickedAvailableOcr,
-    (code) => (ocrLanguages.available.includes(code) ? '' : `(${download})`),
+    (code) => {
+      if (ocrStatus.has(code)) return `(${ocrStatus.get(code)})`;
+      return ocrLanguages.available.includes(code) ? '' : `(${download})`;
+    },
     (code) => {
       pickedAvailableOcr = code;
       renderOcrLanguages();
@@ -650,17 +655,19 @@ async function addOcrLanguage(code) {
   if (!code || ocrBusy) return;
   const needsDownload = !ocrLanguages.available.includes(code);
   ocrBusy = true;
-  ocrLanguageStatus.textContent = needsDownload
-    ? `${OcrLanguages[code]}: ${translate('__downloading__') || 'Downloading...'}`
-    : '';
+  ocrStatus.delete(code);
+  if (needsDownload) {
+    ocrStatus.set(code, translate('__downloading__') || 'Downloading...');
+    renderOcrLanguages();
+  }
   try {
     ocrLanguages.selected = await window.electronAPI.addOcrLanguage(code);
     if (needsDownload) ocrLanguages.available.push(code);
-    ocrLanguageStatus.textContent = '';
+    ocrStatus.delete(code);
     pickedAvailableOcr = null;
   } catch {
-    ocrLanguageStatus.textContent = `${OcrLanguages[code]}: ${translate('__download_failed__')
-      || 'Download failed. Check your internet connection and try again.'}`;
+    ocrStatus.set(code, translate('__download_failed__')
+      || 'Download failed. Check your internet connection and try again.');
   }
   ocrBusy = false;
   renderOcrLanguages();

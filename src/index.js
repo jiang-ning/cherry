@@ -13,6 +13,7 @@ const { OcrLanguages } = require('./ocr-languages');
 const { BUNDLED_LANGUAGES } = require('./ocr');
 
 const IDLE_THRESHOLD_SECONDS = 60;
+const WORKER_RESTART_DELAY_MS = 5000;
 const IMAGES_DIR = path.join(__dirname, 'images');
 // The same files the @tesseract.js-data packages ship, pinned to their only version.
 const OCR_DATA_URL = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/{code}@1.0.0/4.0.0_best_int/{code}.traineddata.gz';
@@ -24,6 +25,7 @@ let mainWindow;
 let tray;
 let isQuitting = false;
 let indexWorker;
+let idleReporter = null;
 let indexStatus = null;
 let indexPaths = [];
 let indexExtensions = [];
@@ -592,18 +594,26 @@ function startIndexWorker() {
   });
   indexWorker.on('message', handleWorkerMessage);
   indexWorker.on('error', (error) => {
+    console.error('Index worker error:', error);
     indexStatus = { ...indexStatus, error: error.message };
     mainWindow?.webContents.send('index:status', indexStatus);
   });
-  indexWorker.on('exit', () => {
+  indexWorker.on('exit', (code) => {
     indexWorker = null;
     failPendingRequests(translate('__search_index_stopped__') || 'The search index stopped.');
+    if (isQuitting) return;
+    console.error(`Index worker exited with code ${code}; restarting.`);
+    setTimeout(() => {
+      if (!isQuitting && !indexWorker) startIndexWorker();
+    }, WORKER_RESTART_DELAY_MS);
   });
 
+  if (idleReporter) return;
   const reportIdle = () => {
     indexWorker?.postMessage({ type: 'idle', idle: powerMonitor.getSystemIdleTime() >= IDLE_THRESHOLD_SECONDS });
   }
-  setInterval(reportIdle, 15 * 1000).unref();
+  idleReporter = setInterval(reportIdle, 15 * 1000);
+  idleReporter.unref();
   reportIdle();
 }
 
