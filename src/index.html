@@ -198,6 +198,30 @@
               </div>
             </div><!-- end of max result range -->
           </div>
+
+          <div class="setting-contents">
+            <div class="indexSelectionRow ocr-language-row">
+              <div class="indexSelections">
+                <label for="ocrSelectedList" data-lang-innertext="__ocr_selected_languages__">Languages recognized by OCR:</label>
+                <div class="index-box">
+                  <div id="ocrSelectedList" class="index-list"></div>
+                  <div class="index-actions">
+                    <span id="ocrLanguageRemove">-</span>
+                  </div>
+                </div>
+              </div>
+              <div class="indexSelections">
+                <label for="ocrAvailableList" data-lang-innertext="__ocr_available_languages__">OCR available languages:</label>
+                <div class="index-box">
+                  <div id="ocrAvailableList" class="index-list"></div>
+                  <div class="index-actions">
+                    <span id="ocrLanguageAdd">+</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="ocrLanguageStatus" class="ocr-language-status" role="status"></div>
+          </div>
         </div>
         <!-- end of Search section -->
 

@@ -1,5 +1,3 @@
-const { OcrLanguages } = require("./ocr-languages");
-
 const keywordInput = document.getElementById('keyword');
 const keywordHighlight = document.getElementById('keywordHighlight');
 const fileList = document.getElementById('fileList');
