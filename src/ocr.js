@@ -53,19 +53,21 @@ function drawPage(source, width, height) {
   return page;
 }
 
+// Returns { loadingTask }; destroy the task to free the document. Wrapped so `await` doesn't unwrap it.
 async function openPdf(filePath) {
   pdfjsPromise ??= import('pdfjs-dist/legacy/build/pdf.mjs');
   const pdfjs = await pdfjsPromise;
   const root = packageDir('pdfjs-dist');
   // PDF.js requires these folder URLs to end with "/".
-  return pdfjs.getDocument({
+  const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(await fs.readFile(filePath)),
     cMapUrl: `${path.join(root, 'cmaps')}/`,
     standardFontDataUrl: `${path.join(root, 'standard_fonts')}/`,
     wasmUrl: `${path.join(root, 'wasm')}/`,
     isEvalSupported: false,
     verbosity: 0
-  }).promise;
+  });
+  return { loadingTask };
 }
 
 async function renderPdfPage(pdfPage) {
@@ -102,8 +104,9 @@ function decodeTiffPage(buffer, ifds, index) {
 // `count` of them. With `scannedOnly`, PDF pages that have a text layer are passed over.
 async function* readPages(filePath, kind, first, count, scannedOnly = false) {
   if (kind === 'pdf') {
-    const document = await openPdf(filePath);
+    const { loadingTask } = await openPdf(filePath);
     try {
+      const document = await loadingTask.promise;
       const last = Math.min(document.numPages, first + count);
       for (let index = first; index < last; index++) {
         const pdfPage = await document.getPage(index + 1);
@@ -115,7 +118,7 @@ async function* readPages(filePath, kind, first, count, scannedOnly = false) {
         }
       }
     } finally {
-      await document.destroy();
+      await loadingTask.destroy();
     }
     return;
   }
