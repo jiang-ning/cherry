@@ -225,10 +225,12 @@ function renderFile(file) {
   preview.className = 'file-preview';
   preview.append(highlightedPreview(file.preview, file.highlights));
 
-  item.append(header, location, preview);
+  item.append(header, location);
   if (file.ocrMatch) {
-    thumbnailLoaders.set(item, () => loadOcrThumbnail(item, file));
+    thumbnailLoaders.set(item, () => loadOcrThumbnail(item, file, preview));
     thumbnailObserver.observe(item);
+  } else {
+    item.append(preview);
   }
   return item;
 }
@@ -243,14 +245,17 @@ const thumbnailObserver = new IntersectionObserver((entries) => {
   }
 }, { root: fileList, rootMargin: '200px 0px' });
 
-async function loadOcrThumbnail(item, file) {
+async function loadOcrThumbnail(item, file, preview) {
   let thumbnail;
   try {
     thumbnail = await window.electronAPI.getOcrThumbnail(file.path, file.ocrMatch.start, file.ocrMatch.length);
-  } catch {
+  } catch {}
+  if (!item.isConnected) return;
+  // Fall back to the text fragment when no thumbnail can be rendered.
+  if (!thumbnail) {
+    item.append(preview);
     return;
   }
-  if (!thumbnail || !item.isConnected) return;
   const frame = document.createElement('div');
   frame.className = 'ocr-thumb';
   const image = document.createElement('img');
@@ -1043,6 +1048,14 @@ keywordInput.addEventListener('scroll', () => {
 });
 updateKeywordHighlight();
 brandMark.addEventListener('click', () => {
+  const welcome = document.getElementById('welcome');
+  if (!welcome.hidden) {
+    welcomePinned = false;
+    welcome.hidden = true;
+    settingsPanel.hidden = true;
+    showSettingItem(0);
+    return;
+  }
   welcomePinned = false;
   settingsPanel.hidden = !settingsPanel.hidden;
   fileList.hidden = !settingsPanel.hidden || fileList.childElementCount === 0;

@@ -771,7 +771,9 @@ button.primary:hover {
 .setting-item.general {
   display: grid;
   grid-template-columns: max-content 1fr auto;
+  grid-template-rows: auto 1fr;
   row-gap: 12px;
+  align-self: stretch;
 }
 
 .general-row {
@@ -800,6 +802,10 @@ button.primary:hover {
 
 .setting-item.general .setting-name {
   text-align: right;
+}
+
+.general-row:not(.general-row-top) {
+  align-self: end;
 }
 
 .general-row:not(.general-row-top) > .setting-section {
@@ -867,7 +873,7 @@ button.primary:hover {
 
 .setting-item .shortcutKeys {
   justify-content: center;
-  height: 100px;
+  height: 160px;
 }
 
 #hotkeys-message {
