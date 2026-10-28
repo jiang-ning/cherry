@@ -1,6 +1,7 @@
 module.exports = {
   packagerConfig: {
-    asar: true,
+    // tesseract.js starts its own worker thread and reads WebAssembly and language files, which must be real files.
+    asar: { unpack: '**/node_modules/{tesseract.js,tesseract.js-core,@tesseract.js-data}/**' },
     icon: './src/images/logo.ico'
   },
   rebuildConfig: {

@@ -36,11 +36,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setSearchFileNames: (enabled) => ipcRenderer.invoke('search-file-names:set', enabled),
   getMaxResults: () => ipcRenderer.invoke('max-results:get'),
   setMaxResults: (value) => ipcRenderer.invoke('max-results:set', value),
+  getOcrLanguages: () => ipcRenderer.invoke('ocr-languages:get'),
+  addOcrLanguage: (code) => ipcRenderer.invoke('ocr-languages:add', code),
+  removeOcrLanguage: (code) => ipcRenderer.invoke('ocr-languages:remove', code),
   getTheme: () => ipcRenderer.invoke('theme:get'),
   setTheme: (theme) => ipcRenderer.invoke('theme:set', theme),
   setLanguage: (language) => ipcRenderer.invoke('language:set', language),
   openFile: (filePath) => ipcRenderer.invoke('file:open', filePath),
   openFolder: (filePath) => ipcRenderer.invoke('file:show-in-folder', filePath),
+  getOcrThumbnail: (filePath, start, length) => ipcRenderer.invoke('ocr:thumbnail', filePath, start, length),
   onIndexStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('index:status', listener);

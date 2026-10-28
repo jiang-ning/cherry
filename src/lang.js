@@ -2,6 +2,7 @@ const Languages = {
   "ar": {
     "name": "العربية",
     "locale": "ar",
+    "ocr": "ara",
     "__language__": "اللغة",
     "__theme__": "موضوع",
     "__settings__": "الإعدادات",
@@ -73,6 +74,7 @@ const Languages = {
   "de": {
     "name": "Deutsch",
     "locale": "de",
+    "ocr": "deu",
     "__language__": "Sprache",
     "__theme__": "Thema",
     "__settings__": "Einstellungen",
@@ -144,6 +146,7 @@ const Languages = {
   "en": {
     "name": "English",
     "locale": "en",
+    "ocr": "eng",
     "__language__": "Language",
     "__theme__": "Theme",
     "__settings__": "Settings",
@@ -211,10 +214,17 @@ const Languages = {
     "__open_cherryquery__": "Open",
     "__exit__": "Exit",
     "__cancel__": "Cancel",
+    "__ocr_languages__": "Text Recognition (OCR)",
+    "__ocr_selected_languages__": "Languages recognized by OCR:",
+    "__ocr_available_languages__": "OCR available languages:",
+    "__download__": "download",
+    "__downloading__": "Downloading...",
+    "__download_failed__": "Download failed. Check your internet connection and try again.",
   },
   "es": {
     "name": "Español",
     "locale": "es",
+    "ocr": "spa",
     "__language__": "Idioma",
     "__theme__": "Tema",
     "__settings__": "Ajustes",
@@ -286,6 +296,7 @@ const Languages = {
   "fr": {
     "name": "Française",
     "locale": "fr",
+    "ocr": "fra",
     "__language__": "Langue",
     "__theme__": "Thème",
     "__settings__": "Paramètres",
@@ -357,6 +368,7 @@ const Languages = {
   "it": {
     "name": "Italiana",
     "locale": "it",
+    "ocr": "ita",
     "__language__": "Lingua",
     "__theme__": "Tema",
     "__settings__": "Impostazioni",
@@ -428,6 +440,7 @@ const Languages = {
   "jp": {
     "name": "日本語",
     "locale": "ja",
+    "ocr": "jpn",
     "__language__": "言語",
     "__theme__": "テーマ",
     "__settings__": "設定",
@@ -499,6 +512,7 @@ const Languages = {
   "zhCN": {
     "name": "简体中文",
     "locale": "zh_cn",
+    "ocr": "chi_sim",
     "__language__": "语言",
     "__theme__": "主题",
     "__settings__": "设置",
@@ -570,6 +584,7 @@ const Languages = {
   "zhTW": {
     "name": "繁體中文",
     "locale": "zh_tw",
+    "ocr": "chi_tra",
     "__language__": "語言",
     "__theme__": "主題",
     "__settings__": "設定",

@@ -228,7 +228,6 @@ button.primary:hover {
 .indexSelectionRow {
   display: flex;
   gap: 12px;
-  margin-bottom: 6px;
 }
 
 .indexSelectionRow > .indexSelections {
@@ -655,6 +654,31 @@ button.primary:hover {
   border-radius: 2px;
 }
 
+/* Region of a scanned PDF or image where OCR found the match. The image is rendered at 2x. */
+.ocr-thumb {
+  position: relative;
+  display: inline-block;
+  margin-top: 6px;
+  line-height: 0;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 4px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.ocr-thumb img {
+  max-width: 240px;
+  max-height: 80px;
+}
+
+.ocr-thumb-mark {
+  position: absolute;
+  background: rgba(255, 210, 60, 0.35);
+  outline: 1px solid rgba(230, 170, 0, 0.9);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
 .open-file {
   display: inline-block;
   background: url('./images/file.svg') no-repeat center center;
@@ -747,7 +771,9 @@ button.primary:hover {
 .setting-item.general {
   display: grid;
   grid-template-columns: max-content 1fr auto;
+  grid-template-rows: auto 1fr;
   row-gap: 12px;
+  align-self: stretch;
 }
 
 .general-row {
@@ -771,10 +797,15 @@ button.primary:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 24px;
+  margin: 12px 10px;
 }
 
 .setting-item.general .setting-name {
   text-align: right;
+}
+
+.general-row:not(.general-row-top) {
+  align-self: end;
 }
 
 .general-row:not(.general-row-top) > .setting-section {
@@ -786,6 +817,24 @@ button.primary:hover {
 
 .search-options {
   grid-column: 2 / -1;
+}
+
+.ocr-language-row {
+  margin-top: 18px;
+}
+
+.ocr-language-row .index-list {
+  height: 140px;
+}
+
+.ocr-language-note {
+  margin-left: 6px;
+  color: #888;
+}
+
+.ocr-language-row .index-path-item.locked {
+  color: #999;
+  cursor: default;
 }
 
 .indexUsageInfo {
@@ -824,7 +873,7 @@ button.primary:hover {
 
 .setting-item .shortcutKeys {
   justify-content: center;
-  height: 100px;
+  height: 160px;
 }
 
 #hotkeys-message {

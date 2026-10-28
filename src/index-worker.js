@@ -2,12 +2,19 @@ const { parentPort, workerData } = require('node:worker_threads');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { FileIndex } = require('./file-index');
-const { MB, extractText, isSupportedFile, isIgnoredDirectory } = require('./search');
+const ocr = require('./ocr');
+const {
+  MB, IMAGE_EXTENSIONS, extractText, isSupportedFile, isIgnoredDirectory
+} = require('./search');
 
 const RESCAN_INTERVAL_MS = 10 * 60 * 1000;
 const RECENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const STATUS_INTERVAL_MS = 1000;
 const WAIT_MS = 2000;
+// Bump when OCR changes, so files read with the old OCR, or skipped by it, are read again.
+const OCR_ENGINE = 'tesseract.js-2';
+// PDFs with less text than this may hold scanned pages that weren't OCR'd before.
+const OCR_REQUEUE_MAX_CHARS = 2000;
 
 const index = new FileIndex(workerData.databasePath);
 let roots = workerData.roots;
@@ -15,6 +22,7 @@ let extensions = new Set(workerData.extensions);
 let excludedFolders = new Set(workerData.excludedFolders.map((name) => name.toLowerCase()));
 let maxFileSizeMB = workerData.maxFileSizeMB;
 index.applyMaxFileSize(maxFileSizeMB * MB);
+applyOcrLanguages(workerData.ocrLanguages);
 let rescanRequested = false;
 let wakeScan = null;
 let idle = false;
@@ -35,6 +43,15 @@ let abortScan = false;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // setTimeout has ~15ms resolution on Windows, so zero-length pauses yield with setImmediate instead.
 const pause = (ms) => (ms ? sleep(ms) : new Promise((resolve) => setImmediate(resolve)));
+
+// The OCR languages are part of the engine key, so changing them re-reads scanned files once.
+// `list` is checked by the main process, which also downloads the data of non-bundled languages.
+function applyOcrLanguages(list) {
+  ocr.configure(list, workerData.ocrDataDir);
+  const codes = Array.isArray(list) ? list.filter((code) => typeof code === 'string' && code !== 'eng') : [];
+  const languages = ['eng', ...codes].join('+');
+  index.requeueForOcr(`${OCR_ENGINE}:${languages}`, ['.pdf', ...IMAGE_EXTENSIONS], OCR_REQUEUE_MAX_CHARS);
+}
 
 async function waitWhilePaused() {
   while (paused) await new Promise((resolve) => resumeWaiters.push(resolve));
@@ -184,9 +201,9 @@ async function indexLoop() {
       }
 
       try {
-        const text = await extractText(file.path, file.size, maxFileSizeMB, extensions);
-        if (text === null) index.markSkipped(file.id);
-        else index.saveContent(file, text);
+        const extracted = await extractText(file.path, file.size, maxFileSizeMB, extensions);
+        if (extracted === null) index.markSkipped(file.id);
+        else index.saveContent(file, extracted.text, extracted.layout);
       } catch {
         index.markSkipped(file.id);
       }
@@ -240,6 +257,13 @@ parentPort.on('message', (message) => {
     return;
   }
 
+  if (message.type === 'set-ocr-languages') {
+    applyOcrLanguages(message.languages);
+    catchUp = true;
+    postStatus(true);
+    return;
+  }
+
   if (message.type === 'set-paused') {
     setPaused(Boolean(message.paused));
     return;
@@ -260,6 +284,21 @@ parentPort.on('message', (message) => {
       parentPort.postMessage({ type: 'clear-response', requestId: message.requestId, error: error.message });
     }
     postStatus(true);
+    return;
+  }
+
+  if (message.type === 'ocr-thumbnail') {
+    const reply = (fields) => parentPort.postMessage({
+      type: 'ocr-thumbnail-response', requestId: message.requestId, ...fields
+    });
+    (async () => {
+      const region = index.ocrRegion(message.filePath, message.start, message.length);
+      if (!region) return null;
+      return ocr.renderMatchThumbnail(message.filePath, region);
+    })().then(
+      (thumbnail) => reply({ thumbnail }),
+      (error) => reply({ error: String(error?.message ?? error) })
+    );
     return;
   }
 

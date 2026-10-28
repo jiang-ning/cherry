@@ -17,6 +17,8 @@ const DOCUMENT_EXTENSIONS = new Set([
 ]);
 const EMAIL_EXTENSIONS = new Set(['.eml', '.msg']);
 const ARCHIVE_EXTENSIONS = new Set(['.zip', '.7z', '.rar', '.tar', '.tgz', '.gz']);
+// Read with OCR (see ocr.js).
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.tif', '.tiff']);
 // How many levels of attachments and archive entries are opened, e.g. a ZIP inside an email.
 const MAX_NESTING_DEPTH = 3;
 const DEFAULT_EXCLUDED_FOLDERS = [
@@ -25,12 +27,15 @@ const DEFAULT_EXCLUDED_FOLDERS = [
 
 let officeParser;
 let containers;
-const DEFAULT_EXTENSIONS = [...TEXT_EXTENSIONS, ...DOCUMENT_EXTENSIONS, ...EMAIL_EXTENSIONS, ...ARCHIVE_EXTENSIONS];
+let ocr;
+const DEFAULT_EXTENSIONS = [
+  ...TEXT_EXTENSIONS, ...DOCUMENT_EXTENSIONS, ...EMAIL_EXTENSIONS, ...ARCHIVE_EXTENSIONS, ...IMAGE_EXTENSIONS
+];
 // The defaults before email and archive support, used to add the new defaults to saved settings.
 const LEGACY_DEFAULT_EXTENSIONS = [...TEXT_EXTENSIONS, ...DOCUMENT_EXTENSIONS];
 
 function isSupportedFile(name, extensions) {
-  // Office writes "~$name.docx" lock files while a docment is open.
+  // Office writes "~$name.docx" lock files while a document is open.
   if (name.startsWith('~$')) return false;
   return extensions.has(path.extname(name).toLowerCase());
 }
@@ -56,8 +61,37 @@ async function readDocumentText(source, fileType = null) {
   return String(value ?? '');
 }
 
+// Returns { text, layout } from OCR.
+function recognize(filePath, kind) {
+  ocr ??= require('./ocr');
+  return ocr.recognize(filePath, kind);
+}
+
+// Uses the PDF's text layer, plus OCR of its scanned pages (page with little or no text layer.
+async function readPdfText(filePath) {
+  let text = '';
+  let parseError = null;
+  try {
+    text = await readDocumentText(filePath);
+  } catch (error) {
+    parseError = error;
+  }
+
+  let recognized = null;
+  try {
+    recognized = await recognize(filePath, 'pdf');
+  } catch (error) {
+    // Keep whatever the text layer had. A PDF neither reader can open is reported by the caller.
+    if (!parseError) console.warn(`OCR failed for ${filePath}:`, error);
+  }
+  if (recognized === null && parseError) throw parseError;
+  return { text, recognized };
+}
+
 async function readBufferText(name, buffer, context) {
   const extension = path.extname(name).toLowerCase();
+  // OCR needs a file on disk, so images inside emails and archives aren't read.
+  if (IMAGE_EXTENSIONS.has(extension)) return null;
   if (DOCUMENT_EXTENSIONS.has(extension)) return readDocumentText(buffer, extension.slice(1));
   if (EMAIL_EXTENSIONS.has(extension) || ARCHIVE_EXTENSIONS.has(extension)) {
     containers ??= require('./containers');
@@ -88,15 +122,23 @@ async function readNestedText(name, bytes, context) {
   }
 }
 
-// Returns searchable text, or null when the file is empty, too large, binary, or unsupported.
+// Returns { text, layout }, or null when the file is empty, too large, binary, or unsupported.
+// `layout` holds the page positions of OCR'd words (see ocr.js), with `offset` added for where
+// the OCR text starts in `text`; it is null for files that weren't OCR'd.
 // `extensions` decides which attachments and archive entries are read.
 async function extractText(filePath, size, maxFileSizeMB = DEFAULT_MAX_FILE_SIZE_MB, extensions = DEFAULT_EXTENSIONS) {
   if (size === 0 || size > maxFileSizeMB * MB) return null;
   const extension = path.extname(filePath).toLowerCase();
   let raw;
+  let recognized = null;
 
-  if (DOCUMENT_EXTENSIONS.has(extension)) {
+  if (extension === '.pdf') {
+    ({ text: raw, recognized } = await readPdfText(filePath));
+  } else if (DOCUMENT_EXTENSIONS.has(extension)) {
     raw = await readDocumentText(filePath);
+  } else if (IMAGE_EXTENSIONS.has(extension)) {
+    recognized = await recognize(filePath, 'image');
+    raw = '';
   } else {
     const context = {
       extensions: new Set(extensions),
@@ -110,8 +152,16 @@ async function extractText(filePath, size, maxFileSizeMB = DEFAULT_MAX_FILE_SIZE
     if (raw === null) return null;
   }
 
-  const text = raw.replace(/^\uFEFF/, '').replace(/\s+/g, ' ').trim().slice(0, MAX_INDEXED_CHARS);
-  return text || null;
+  let text = raw.replace(/^\uFEFF/, '').replace(/\s+/g, ' ').trim();
+  let layout = null;
+  // OCR text is already whitespace-normalized, so word offsets stay valid after the join.
+  if (recognized?.text) {
+    const offset = text ? text.length + 1 : 0;
+    text = text ? `${text} ${recognized.text}` : recognized.text;
+    layout = { offset, ...recognized.layout };
+  }
+  text = text.slice(0, MAX_INDEXED_CHARS);
+  return text ? { text, layout } : null;
 }
 
 function parseSearchQuery(rawQuery) {
@@ -202,6 +252,7 @@ module.exports = {
   DEFAULT_EXCLUDED_FOLDERS,
   DEFAULT_EXTENSIONS,
   DEFAULT_MAX_FILE_SIZE_MB,
+  IMAGE_EXTENSIONS,
   LEGACY_DEFAULT_EXTENSIONS,
   MIN_FILE_SIZE_MB,
   MAX_FILE_SIZE_MB,

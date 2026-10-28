@@ -13,7 +13,7 @@ const STATE_SKIPPED = 2;
 
 // Wraps the FTS query so both search paths return a small preview window instead of full file text.
 const previewSelect = (innerQuery) => `
-  SELECT path, modifiedMs, textLength, matchCount, content,
+  SELECT id, path, modifiedMs, textLength, matchCount, content, hasOcr,
     max(1, position - @before) AS windowStart,
     substr(content, max(1, position - @before), length(@query) + @previewLength) AS window
   FROM (${innerQuery})
@@ -27,7 +27,8 @@ const DELETE_TRIGGER = `
 `;
 
 const matchColumns = `
-  f.path, f.modified_ms AS modifiedMs, f.content, length(f.content) AS textLength,
+  f.id, f.path, f.modified_ms AS modifiedMs, f.content, length(f.content) AS textLength,
+  EXISTS(SELECT 1 FROM ocr_layouts o WHERE o.file_id = f.id) AS hasOcr,
   instr(lower(f.content), lower(@query)) AS position,
   (length(lower(f.content)) - length(replace(lower(f.content), lower(@query), ''))) / length(@query) AS matchCount
 `;
@@ -50,6 +51,8 @@ class FileIndex {
       );
       CREATE INDEX IF NOT EXISTS files_by_state ON files(state, modified_ms DESC);
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      -- Page positions of OCR'd words, used for result thumbnails. See extractText in search.js
+      CREATE TABLE IF NOT EXISTS ocr_layouts (file_id INTEGER PRIMARY KEY, layout TEXT NOT NULL);
 
       -- Trigram tokens give case-insensitive substring matching, including for CJK text.
       CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
@@ -101,6 +104,18 @@ class FileIndex {
     this.markSkippedStatement = this.db.prepare(
       `UPDATE files SET content = '', state = ${STATE_SKIPPED} WHERE id = ?`
     );
+    this.saveLayoutStatement = this.db.prepare(
+      'INSERT OR REPLACE INTO ocr_layouts(file_id, layout) VALUES (?, ?)'
+    );
+    this.deleteLayoutStatement = this.db.prepare('DELETE FROM ocr_layouts WHERE file_id = ?');
+    this.removeOrphanLayoutsStatement = this.db.prepare(
+      'DELETE FROM ocr_layouts WHERE file_id NOT IN (SELECT id FROM files)'
+    );
+    this.layoutStatement = this.db.prepare(`
+      SELECT f.modified_ms AS modifiedMs, f.content, o.layout
+      FROM files f JOIN ocr_layouts o ON o.file_id = f.id
+      WHERE f.path = ? AND f.state = ${STATE_INDEXED}
+    `);
     this.requeueSkippedStatement = this.db.prepare(
       `UPDATE files SET state = ${STATE_PENDING} WHERE state = ${STATE_SKIPPED} AND size > @oldBytes AND size <= @newBytes`
     );
@@ -141,6 +156,7 @@ class FileIndex {
 
   finishScan(scanId) {
     this.removeUnseenStatement.run(scanId);
+    this.removeOrphanLayoutsStatement.run();
   }
 
   keepFilesUnder(root, scanId) {
@@ -160,12 +176,79 @@ class FileIndex {
     return this.nextPendingStatement.get();
   }
 
-  saveContent(file, content) {
-    this.saveContentStatement.run({ id: file.id, modifiedMs: file.modifiedMs, size: file.size, content });
+  saveContent(file, content, layout = null) {
+    this.db.transaction(() => {
+      const { changes } = this.saveContentStatement.run({
+        id: file.id, modifiedMs: file.modifiedMs, size: file.size, content
+      });
+      if (!changes) return;
+      if (layout) this.saveLayoutStatement.run(file.id, JSON.stringify(layout));
+      else this.deleteLayoutStatement.run(file.id);
+    })();
   }
 
   markSkipped(id) {
     this.markSkippedStatement.run(id);
+    this.deleteLayoutStatement.run(id);
+  }
+
+  // Finds the page box of the OCR'd words at content offset `start`. A match in the PDF text layer is
+  // looked up again in the OCR text that follows it.
+  ocrRegion(filePath, start, length) {
+    const row = this.layoutStatement.get(filePath);
+    if (!row) return null;
+    const { offset, pages, words } = JSON.parse(row.layout);
+    let from = start;
+    if (from < offset) {
+      const needle = row.content.slice(start, start + length).toLowerCase();
+      from = row.content.toLowerCase().indexOf(needle, offset);
+      if (from < 0) return null;
+    }
+    from -= offset;
+    const to = from + length;
+
+    let page = -1;
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+    for (let i = 0; i < words.length; i += 7) {
+      const [wordPage, wordStart, wordEnd, x, y, width, height] = words.slice(i, i + 7);
+      if (wordStart >= to) break;
+      if (wordEnd <= from) continue;
+      if (page === -1) page = wordPage;
+      else if (wordPage !== page) break;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x + width);
+      bottom = Math.max(bottom, y + height);
+    }
+    if (page === -1 || !pages[page]) return null;
+    const [pageWidth, pageHeight] = pages[page];
+    return {
+      modifiedMs: row.modifiedMs,
+      page,
+      pageWidth,
+      pageHeight,
+      box: { x: left, y: top, width: right - left, height: bottom - top }
+    };
+  }
+
+  // Runs once per OCR engine: re-queues files skipped or read by an earlier engine, and files with
+  // little text, which may hold pages that weren't OCR'd.
+  requeueForOcr(engine, extensions, maxChars) {
+    const current = this.db.prepare("SELECT value FROM meta WHERE key = 'ocr_engine'").get();
+    if (current?.value === engine) return;
+    const requeue = this.db.prepare(`
+      UPDATE files SET state = ${STATE_PENDING}
+      WHERE (state = ${STATE_SKIPPED} OR length(content) < @maxChars
+        OR id IN (SELECT file_id FROM ocr_layouts))
+        AND lower(path) LIKE @pattern
+    `);
+    this.db.transaction(() => {
+      for (const extension of extensions) requeue.run({ maxChars, pattern: `%${extension}` });
+      this.db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('ocr_engine', ?)").run(engine);
+    })();
   }
 
   // Re-queue files previously skipped for size, or drops files now over the limit.
@@ -188,6 +271,7 @@ class FileIndex {
       this.db.exec(`
         DROP TRIGGER IF EXISTS files_ad;
         DELETE FROM files;
+        DELETE FROM ocr_layouts;
         INSERT INTO files_fts(files_fts) VALUES ('delete-all');
         DELETE FROM meta WHERE key = 'initial_index_done';
         ${DELETE_TRIGGER}
@@ -305,13 +389,15 @@ class FileIndex {
       const suffix = windowStart - 1 + [...window].length < row.textLength ? '…' : '';
       const highlights = findHighlights(window, query, wholeWord, caseSensitive)
         .map(({ start, length }) => ({ start: start + prefix.length, length }));
+      const firstMatch = row.hasOcr ? (matches ?? findHighlights(row.content, query, false, false))[0] : null;
       return {
         path: row.path,
         name: path.basename(row.path),
         modified: row.modifiedMs,
         matchCount: exact ? matches.length : Math.max(row.matchCount, highlights.length, 1),
         preview: `${prefix}${window}${suffix}`,
-        highlights
+        highlights,
+        ocrMatch: firstMatch ? { start: firstMatch.start, length: firstMatch.length } : null
       };
     });
 
@@ -405,7 +491,8 @@ class FileIndex {
         modified: row.modifiedMs,
         matchCount: highlights.length,
         preview: `${prefix}${window}${suffix}`,
-        highlights: previewHighlights
+        highlights: previewHighlights,
+        ocrMatch: row.hasOcr ? { start: highlights[0].start, length: highlights[0].length } : null
       };
     });
 

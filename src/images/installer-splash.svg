@@ -1,27 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400" fill="none" role="img" aria-labelledby="title description">
   <title id="title">CherryQuery installation splash screen</title>
-  <desc id="description">CherryQuery's search mascot on a warm cream background with document illustrations. Installing CherryQuery. Find the words. Find the file. Your documents stay on your computer.</desc>
+  <desc id="description">The CherryQuery logo above an indeterminate installation progress bar.</desc>
   <defs>
-    <linearGradient id="background" x1="0" y1="0" x2="640" y2="400" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFDF8"/>
-      <stop offset="1" stop-color="#FFF5D8"/>
-    </linearGradient>
-    <linearGradient id="paper" x1="443" y1="100" x2="550" y2="254" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#FFFFFF"/>
-      <stop offset="1" stop-color="#FFFDF8"/>
-    </linearGradient>
     <clipPath id="progress-clip">
-      <rect x="49" y="294" width="300" height="8" rx="4"/>
+      <rect x="210" y="291" width="220" height="6" rx="3"/>
     </clipPath>
   </defs>
 
-  <path fill="url(#background)" d="M0 0h640v400H0z"/>
-  <circle cx="609" cy="34" r="155" fill="#FFDA6A" fill-opacity=".25"/>
-  <circle cx="571" cy="392" r="150" fill="#DDF6F0" fill-opacity=".8"/>
-  <circle cx="474" cy="172" r="111" fill="#FFDA6A" fill-opacity=".35"/>
-  <rect x=".5" y=".5" width="639" height="399" stroke="#4A2638" stroke-opacity=".1"/>
+  <rect width="640" height="400" fill="#F5F5F7"/>
 
-  <g transform="translate(42 40)" fill="none">
+  <g transform="translate(248 73) scale(1.5)">
     <circle cx="45" cy="44" r="39" fill="#FFDA6A"/>
     <path d="M18 46c0-9 6-15 14-15s14 6 14 15-6 15-14 15-14-6-14-15Z" fill="#FFFDF8" stroke="#4A2638" stroke-width="3.5"/>
     <ellipse cx="37" cy="47" rx="5.4" ry="7.2" fill="#4A2638"/>
@@ -33,43 +21,10 @@
     <path d="m71.5 59.5 13 13" stroke="#4A2638" stroke-width="8" stroke-linecap="round"/>
   </g>
 
-  <g stroke="#4A2638" stroke-linecap="round" stroke-linejoin="round">
-    <g transform="rotate(-12 449 182)">
-      <rect x="397" y="113" width="104" height="139" rx="12" fill="#DDF6F0" stroke-opacity=".22" stroke-width="2"/>
-      <path d="M418 144h52m-52 15h39m-39 48h52m-52 15h32" stroke-opacity=".25" stroke-width="5"/>
-    </g>
-    <g transform="rotate(9 500 174)">
-      <path d="M456 98h60l31 31v111a12 12 0 0 1-12 12h-79a12 12 0 0 1-12-12V110a12 12 0 0 1 12-12Z" fill="url(#paper)" stroke-opacity=".35" stroke-width="2"/>
-      <path d="M516 98v23a8 8 0 0 0 8 8h23" fill="#FFF0BD" stroke-opacity=".35" stroke-width="2"/>
-      <path d="M464 152h59m-59 16h43" stroke-opacity=".25" stroke-width="5"/>
-      <rect x="458" y="185" width="69" height="19" rx="5" fill="#FFDA6A" stroke="none"/>
-      <path d="M465 194h43" stroke-width="4"/>
-      <path d="M464 220h50" stroke-opacity=".25" stroke-width="5"/>
-    </g>
-    <circle cx="531" cy="229" r="30" fill="#DDF6F0" fill-opacity=".9" stroke-width="5"/>
-    <path d="m553 251 24 24" stroke-width="10"/>
-    <path d="m519 229 8 8 16-17" stroke="#185C50" stroke-width="4"/>
-    <path d="M387 86v12m-6-6h12M571 167v10m-5-5h10" stroke-opacity=".4" stroke-width="2"/>
-  </g>
-  <circle cx="566" cy="87" r="4" fill="#4A2638" fill-opacity=".25"/>
-  <circle cx="384" cy="245" r="5" fill="#FFDA6A"/>
-
-  <g font-family="Segoe UI, Helvetica, Arial, sans-serif" fill="#4A2638">
-    <text x="48" y="186" font-size="48" font-weight="700" letter-spacing="-2">CherryQuery</text>
-    <text x="49" y="221" font-size="18">Find the words. Find the file.</text>
-    <circle cx="55" cy="272" r="4" fill="#185C50"/>
-    <text x="70" y="277" font-size="14" font-weight="600" fill="#185C50">Installing CherryQuery</text>
-    <rect x="49" y="294" width="300" height="8" rx="4" fill="#185C50" fill-opacity=".12"/>
-    <g clip-path="url(#progress-clip)">
-      <rect x="-110" y="294" width="110" height="8" rx="4" fill="#185C50">
-        <animate attributeName="x" from="-110" to="349" dur="1.6s" repeatCount="indefinite"/>
-      </rect>
-    </g>
-    <path d="M48 326h544" stroke="#4A2638" stroke-opacity=".12"/>
-    <g stroke="#185C50" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="49" y="347" width="12" height="10" rx="2"/>
-      <path d="M52 347v-3a3 3 0 0 1 6 0v3"/>
-    </g>
-    <text x="72" y="355" font-size="12" fill="#68545C">Your documents stay on your computer.</text>
+  <rect x="210" y="291" width="220" height="6" rx="3" fill="#D8D8DC"/>
+  <g clip-path="url(#progress-clip)">
+    <rect x="130" y="291" width="80" height="6" rx="3" fill="#6E6E73">
+      <animate attributeName="x" from="130" to="430" dur="1.6s" repeatCount="indefinite"/>
+    </rect>
   </g>
 </svg>

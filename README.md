@@ -7,21 +7,22 @@ A desktop app that searches the contents of files in your Documents folder for a
 - **Word:** `.docx`
 - **Excel:** `.xlsx`
 - **PowerPoint:** `.pptx`
-- **PDF:** `.pdf` (only PDFs that contain a text layer)
+- **PDF:** `.pdf`. Scanned PDFs without a text layer are read with text recognition (OCR).
+- **Images:** `.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`. Text in images and scans, including every page of a multi-page TIFF, is read with text recognition (OCR).
 - **OpenDocument:** `.odt`, `.ods`, `.odp`
 - **Rich Text:** `.rtf`
 - **Email:** `.eml`, `.msg` (Outlook). The subject, sender, recipients, message body, and the names and contents of attachments are searched.
 - **Archives:** `.zip`, `.7z`, `.rar` (RAR 4 and RAR 5), `.tar`, `.tgz`, `.tar.gz`, and `.gz`. The names and contents of the files inside are searched. A `.gz` file that isn't a tar archive, such as `report.txt.gz`, is searched as the file it contains.
 - **Text and notes:** `.txt`, `.md`, `.markdown`, `.log`
 - **Data and config:** `.csv`, `.tsv`, `.json`, `.xml`, `.yaml`, `.yml`, `.ini`, `.cfg`, `.conf`, `.toml`, `.properties`
-- **Web and source code:** `.html`, `.htm`, `.css`, `.js`, `.jsx`, `.ts`, `.tsx`, `.py`, `.java`, `.c`, `.cpp`, `.h`, `.cs`, `.go`, `.rs`, `.rb`, `.sql`, `.sh`, `.ps1`, `bat`
+- **Web and source code:** `.html`, `.htm`, `.css`, `.js`, `.jsx`, `.ts`, `.tsx`, `.py`, `.java`, `.c`, `.cpp`, `.h`, `.cs`, `.go`, `.rs`, `.rb`, `.sql`, `.sh`, `.ps1`, `.bat`
 
 ## Limitations
-- Documents (Word, Excel, PowerPoint, PDF, OpenDocument, RTF) up to 50MB are searched; text file stay at 5MB. Larger files are skipped.
+- Documents (Word, Excel, PowerPoint, PDF, OpenDocument, RTF) up to 50MB are searched; text files stay at 5MB. Larger files are skipped.
 - Older `.doc`, `.xls`, and `.ppt` formats aren't supported.
 - Email attachments and files inside archives are searched only when their extension is in the indexed file extensions list and they are within the maximum file size. Archives and emails inside each other are opened up to 3 levels deep, and up to 1,000 files are read from each archive. A match opens the email or archive, not the attachment or file inside it.
 - Encrypted ZIP archives, and ZIP archives that use compression other than Deflate, can't be read; only the names of the files inside are searched. Encrypted files inside 7z and RAR archives are searched by name only, and 7z and RAR archives with encrypted file names can't be read at all.
-- Scanned PDFs without a text layer won't match, because text recognition (OCR) is not used.
+- Text recognition (OCR) uses Tesseract (tesseract.js, WebAssembly), so it runs on your computer and nothing is uploaded. Choose the languages text recognition reads in Settings > Search, by moving them from the available list to the selected list. English is always included, and the app language is added when you select it. The data for the app languages ships with the app; any of the other 100+ Tesseract languages is downloaded once, from the jsDelivr CDN, when you add it. Each extra language makes OCR slower, and changing the languages reads scanned files again. A PDF page is OCR'd when its text layer has fewer than 100 characters of text, such as a scanned page with only a scanner's watermark; its pages are rendered at 300 DPI. Up to 50 pages are read from each scanned PDF or TIFF. Images and scanned PDFs inside emails and archives aren't OCR'd.
 - Password-protected documents can't be read and are counted as unreadable.
 - Text files are read as UTF-8; files in other encodings may not match.
 - Only the Documents folder is searched. The `node_modules`, `.git`, `.svn`, `$Recycle.Bin`, and `System Volume Information` folders are skipped, as are Office's temporary `~$` files.

@@ -225,8 +225,47 @@ function renderFile(file) {
   preview.className = 'file-preview';
   preview.append(highlightedPreview(file.preview, file.highlights));
 
-  item.append(header, location, preview);
+  item.append(header, location);
+  if (file.ocrMatch) {
+    thumbnailLoaders.set(item, () => loadOcrThumbnail(item, file, preview));
+    thumbnailObserver.observe(item);
+  } else {
+    item.append(preview);
+  }
   return item;
+}
+
+// Thumbnails are rendered on demand, so they load only once a result scrolls into view.
+const thumbnailLoaders = new WeakMap();
+const thumbnailObserver = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    thumbnailObserver.unobserve(entry.target);
+    thumbnailLoaders.get(entry.target)?.();
+  }
+}, { root: fileList, rootMargin: '200px 0px' });
+
+async function loadOcrThumbnail(item, file, preview) {
+  let thumbnail;
+  try {
+    thumbnail = await window.electronAPI.getOcrThumbnail(file.path, file.ocrMatch.start, file.ocrMatch.length);
+  } catch {}
+  if (!item.isConnected) return;
+  // Fall back to the text fragment when no thumbnail can be rendered.
+  if (!thumbnail) {
+    item.append(preview);
+    return;
+  }
+  const frame = document.createElement('div');
+  frame.className = 'ocr-thumb';
+  const image = document.createElement('img');
+  image.alt = '';
+  image.src = thumbnail.src;
+  const mark = document.createElement('span');
+  mark.className = 'ocr-thumb-mark';
+  for (const side of ['left', 'top', 'width', 'height']) mark.style[side] = `${thumbnail.mark[side]}%`;
+  frame.append(image, mark);
+  item.append(frame);
 }
 
 async function runSearch() {
@@ -270,7 +309,7 @@ const settingsPanel = document.getElementById('settings');
 const indexAmount = document.getElementById('indexAmount');
 const diskSpaceUsed = document.getElementById('diskSpaceUsed');
 const diskUsageRatioChart = document.getElementById('diskUsageRatioChart');
-const indexFileLocation = document.querySelector('#indexFileLocation span');
+const indexFileLocation = document.getElementById('indexFileLocation');
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
 
@@ -402,7 +441,7 @@ function selectLanguage(option) {
   setLanguageOpen(false);
   localStorage.setItem('language', option.dataset.value);
   changeLanguage(option.dataset.value);
-  window.electronAPI.setLanguage(option.dataset.value).catch(() => {});
+  window.electronAPI.setLanguage(option.dataset.value).then(() => loadOcrLanguages()).catch(() => {});
 }
 
 const savedLanguage = localStorage.getItem('language') || 'en';
@@ -450,6 +489,7 @@ function changeLanguage(languageCode) {
   elementsPlaceholder.forEach(el => {
     el.placeholder = words[el.dataset['langPlaceholder']] || el.placeholder;
   });
+  document.dispatchEvent(new Event('app-language-change'));
 }
 
 function translate(wordsCode) {
@@ -557,6 +597,106 @@ searchFileNames.addEventListener('change', async () => {
     searchFileNames.checked = !searchFileNames.checked;
   }
 });
+
+const ocrSelectedList = document.getElementById('ocrSelectedList');
+const ocrAvailableList = document.getElementById('ocrAvailableList');
+// `available` holds languages that are bundled or already downloaded.
+let ocrLanguages = { selected: ['eng'], available: [] };
+// The highlighted item in each box, which the - and + buttons act on.
+let pickedSelectedOcr = null;
+let pickedAvailableOcr = null;
+let ocrBusy = false;
+// Download progress or failure, shown in place of a language's note.
+const ocrStatus = new Map();
+
+function renderOcrList(list, codes, picked, note, onPick, onActivate, isLocked = () => false) {
+  list.replaceChildren(...codes.map((code) => {
+    const item = document.createElement('div');
+    item.className = 'index-path-item';
+    item.classList.toggle('selected', code === picked);
+    item.classList.toggle('locked', isLocked(code));
+    item.textContent = OcrLanguages[code] ?? code;
+    const extra = note(code);
+    if (extra) {
+      const span = document.createElement('span');
+      span.className = 'ocr-language-note';
+      span.textContent = extra;
+      span.title = extra;
+      item.append(span);
+    }
+    item.addEventListener('click', () => onPick(code));
+    item.addEventListener('dblclick', () => onActivate(code));
+    return item;
+  }));
+}
+
+function renderOcrLanguages() {
+  const download = translate('__download__') || 'download';
+  renderOcrList(ocrSelectedList, ocrLanguages.selected, pickedSelectedOcr,
+    () => '',
+    (code) => {
+      // English can't be removed, so it can't be picked either.
+      pickedSelectedOcr = code === 'eng' ? null : code;
+      renderOcrLanguages();
+    },
+    removeOcrLanguage,
+    (code) => code === 'eng');
+  const unselected = Object.keys(OcrLanguages)
+    .filter((code) => !ocrLanguages.selected.includes(code))
+    .sort((a, b) => OcrLanguages[a].localeCompare(OcrLanguages[b]));
+  renderOcrList(ocrAvailableList, unselected, pickedAvailableOcr,
+    (code) => {
+      if (ocrStatus.has(code)) return `(${ocrStatus.get(code)})`;
+      return ocrLanguages.available.includes(code) ? '' : `(${download})`;
+    },
+    (code) => {
+      pickedAvailableOcr = code;
+      renderOcrLanguages();
+    },
+    addOcrLanguage);
+}
+
+async function addOcrLanguage(code) {
+  if (!code || ocrBusy) return;
+  const needsDownload = !ocrLanguages.available.includes(code);
+  ocrBusy = true;
+  ocrStatus.delete(code);
+  if (needsDownload) {
+    ocrStatus.set(code, translate('__downloading__') || 'Downloading...');
+    renderOcrLanguages();
+  }
+  try {
+    ocrLanguages.selected = await window.electronAPI.addOcrLanguage(code);
+    if (needsDownload) ocrLanguages.available.push(code);
+    ocrStatus.delete(code);
+    pickedAvailableOcr = null;
+  } catch {
+    ocrStatus.set(code, translate('__download_failed__')
+      || 'Download failed. Check your internet connection and try again.');
+  }
+  ocrBusy = false;
+  renderOcrLanguages();
+}
+
+async function removeOcrLanguage(code) {
+  if (!code || code === 'eng' || ocrBusy) return;
+  ocrLanguages.selected = await window.electronAPI.removeOcrLanguage(code);
+  pickedSelectedOcr = null;
+  renderOcrLanguages();
+}
+
+function loadOcrLanguages() {
+  return window.electronAPI.getOcrLanguages().then((value) => {
+    ocrLanguages = value;
+    renderOcrLanguages();
+  });
+}
+
+document.getElementById('ocrLanguageAdd').addEventListener('click', () => addOcrLanguage(pickedAvailableOcr));
+document.getElementById('ocrLanguageRemove').addEventListener('click', () => removeOcrLanguage(pickedSelectedOcr));
+document.addEventListener('app-language-change', renderOcrLanguages);
+renderOcrLanguages();
+loadOcrLanguages();
 
 document.getElementById('btnWelcomeScreen').addEventListener('click', () => {
   const welcome = document.getElementById('welcome');
@@ -908,6 +1048,14 @@ keywordInput.addEventListener('scroll', () => {
 });
 updateKeywordHighlight();
 brandMark.addEventListener('click', () => {
+  const welcome = document.getElementById('welcome');
+  if (!welcome.hidden) {
+    welcomePinned = false;
+    welcome.hidden = true;
+    settingsPanel.hidden = true;
+    showSettingItem(0);
+    return;
+  }
   welcomePinned = false;
   settingsPanel.hidden = !settingsPanel.hidden;
   fileList.hidden = !settingsPanel.hidden || fileList.childElementCount === 0;
