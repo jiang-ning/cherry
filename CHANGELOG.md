@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.1.0]
 
 ### Supported files
 - Email files (`.eml` and Outlook `.msg`): the subject, sender, recipients, body, and attachment names and contents are searched.
