@@ -309,7 +309,7 @@ const settingsPanel = document.getElementById('settings');
 const indexAmount = document.getElementById('indexAmount');
 const diskSpaceUsed = document.getElementById('diskSpaceUsed');
 const diskUsageRatioChart = document.getElementById('diskUsageRatioChart');
-const indexFileLocation = document.querySelector('#indexFileLocation span');
+const indexFileLocation = document.getElementById('indexFileLocation');
 const MB = 1024 * 1024;
 const GB = 1024 * MB;
 
