@@ -26,7 +26,7 @@ async function loadModel(modelDir) {
   env.allowLocalModels = true;
   env.localModelPath = modelDir;
   env.useFSCache = false;
-  const loaded = await pipeline('feature-extraction', MODEL_ID, { dtype: 'q8', local_file_only: true });
+  const loaded = await pipeline('feature-extraction', MODEL_ID, { dtype: 'q8', local_files_only: true });
   await unloadModel();
   extractor = loaded;
 }
@@ -54,7 +54,7 @@ function quantize(vector) {
   return { vector: Buffer.from(bytes.buffer), scale };
 }
 
-// Cosine similarity, since both vectors are mormalized.
+// Cosine similarity, since both vectors are normalized.
 function similarity(query, blob, scale) {
   const vector = new Int8Array(blob.buffer, blob.byteOffset, blob.byteLength);
   let dot = 0;
@@ -123,7 +123,7 @@ function namedPeriod(month, months, last, year, now) {
 
 const TIME_PATTERNS = [
   {
-    pattern: new RegExp(`\\b${PREP}(?:the\\s+)?(?:last|past)\\s+(?<count>\\d{1,3}\\s+(?<unit>day|week|month|year)s?\\b`, 'i'),
+    pattern: new RegExp(`\\b${PREP}(?:the\\s+)?(?:last|past)\\s+(?<count>\\d{1,3})\\s+(?<unit>day|week|month|year)s?\\b`, 'i'),
     range: ({ count, unit }, now) => [shift(now, unit.toLowerCase(), -Number(count)), now]
   },
   {

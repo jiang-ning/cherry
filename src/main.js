@@ -636,7 +636,7 @@ function describeAiNotReady(state) {
   if (state.downloadError) {
     return `${translate('__download_failed__') || 'Download failed. Check your internet connection and try again.'} (${state.downloadError})`;
   }
-  if (!state.download) return translate('__ai_model_not_downloaded__') || 'Download the model to use AI Mode.';
+  if (!state.downloaded) return translate('__ai_model_not_downloaded__') || 'Download the model to use AI Mode.';
   if (!state.enabled) return translate('__ai_mode_off__') || 'The model is downloaded. Turn on AI Mode to use it.';
   if (state.state === 'loading') return translate('__ai_loading_model__') || 'Loading the model...';
   if (state.state === 'error') return `${translate('__ai_model_error__') || 'The model could not be loaded:'} ${state.error}`;
@@ -657,7 +657,7 @@ function renderAiState(state) {
   downloadModelButton.textContent = state?.downloading
     ? translate('__cancel__') || 'Cancel'
     : translate('__download_model__') || 'Download';
-  removeModelButton.hidden = !state?.download;
+  removeModelButton.hidden = !state?.downloaded;
   // The shown results came from the other kind of search.
   if (isAiSearch() !== wasAiSearch) runSearch();
 }

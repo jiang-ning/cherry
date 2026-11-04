@@ -11,7 +11,6 @@ const { Languages } = require('./lang');
 const { OcrLanguages } = require('./ocr-languages');
 const { BUNDLED_LANGUAGES } = require('./ocr');
 const { MODEL_ID: AI_MODEL_ID, MODEL_FILES: AI_MODEL_FILES } = require('./semantic');
-const { error } = require('console');
 
 const IDLE_THRESHOLD_SECONDS = 60;
 const WORKER_RESTART_DELAY_MS = 5000;
@@ -21,7 +20,7 @@ const OCR_DATA_URL = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/{code}@1.0
 const OCR_DATA_SUFFIX = '.traineddata.gz';
 const MAX_OCR_DATA_BYTES = 64 * 1024 * 1024;
 const OCR_DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
-// The AI Mode model isn't shipped with the app; it is downloaded once when the user turns AI Mode on.
+// The AI Mode model isn't shipped with the app; it is downloaded once when the user clicks Download.
 const AI_MODEL_URL = 'https://huggingface.co/{model}/resolve/main/{file}';
 const MAX_AI_MODEL_FILE_BYTES = 512 * 1024 * 1024;
 const AI_DOWNLOAD_TIMEOUT_MS = 60 * 60 * 1000;
@@ -216,7 +215,7 @@ function getAiModelDir() {
 }
 
 const aiModelFile = (file) => path.join(getAiModelDir(), AI_MODEL_ID, ...file.split('/'));
-// Written once every file is in place, so an interrupted dwonload never counts as complete.
+// Written once every file is in place, so an interrupted download never counts as complete.
 const aiModelMarker = () => aiModelFile('.complete');
 
 function aiSnapshot() {
@@ -235,7 +234,7 @@ function aiSnapshot() {
 }
 
 function sendAiState() {
-  mainWindow?.webContents.send('ai:state', aiSnapshot);
+  mainWindow?.webContents.send('ai:state', aiSnapshot());
 }
 
 // Resolves once the worker has loaded or unloaded the model.
@@ -243,6 +242,7 @@ function applyAiMode() {
   if (!indexWorker) return Promise.resolve();
   const requestId = randomUUID();
   return new Promise((resolve, reject) => {
+    pendingRequests.set(requestId, { resolve, reject });
     indexWorker.postMessage({
       type: 'set-ai-model', requestId, modelDir: aiEnabled && aiDownloaded ? getAiModelDir() : null
     });
@@ -323,7 +323,7 @@ ipcMain.handle('ai:set-enabled', async (_event, enabled) => {
 });
 
 ipcMain.handle('ai:download', () => {
-  if (!aiDownloadAbort && !aiDownloadTask) aiDownloadTask = downloadAiModel();
+  if (!aiDownloadAbort && !aiDownloaded) aiDownloadTask = downloadAiModel();
   return aiSnapshot();
 });
 

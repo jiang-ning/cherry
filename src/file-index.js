@@ -180,7 +180,7 @@ class FileIndex {
     `);
     this.deleteVectorsStatement = this.db.prepare('DELETE FROM file_vectors WHERE file_id = ?');
     this.deleteEmbeddedStatement = this.db.prepare('DELETE FROM embedded_files WHERE file_id = ?');
-    this.inertVectorStatement = this.db.prepare(`
+    this.insertVectorStatement = this.db.prepare(`
       INSERT INTO file_vectors(file_id, chunk, start, length, scale, vector)
       VALUES (@fileId, @chunk, @start, @length, @scale, @vector)
     `);

@@ -10,7 +10,7 @@
 - Settings > AI Mode has a switch to turn AI Mode on or off, and Download and Remove buttons for the model. Turning AI Mode off keeps the downloaded model; only Remove deletes it. While the model downloads, the Download button becomes Cancel.
 - The AI Mode button next to the search box becomes available once AI Mode is on and the model is ready; click it to switch between keyword and AI search. Before that, clicking it opens Settings > AI Mode.
 - Settings > AI Mode shows the download progress and how many files have been analyzed. Files are analyzed in the background, newest first, right after the model is first loaded and afterwards on the same schedule as indexing. Pause Index also pauses this, and Clear Index removes the analysis results.
-- Only the beginning of each file (about the first 4,000 characters) is used for AI search.
+- Only the beginning of each file (about the first 4,800 characters) is used for AI search.
 
 ## [1.1.0]
 
@@ -19,7 +19,7 @@
 - ZIP archives (`.zip`): the names and contents of the files inside are searched, including archives and emails nested up to 3 levels deep.
 - 7-ZIP (`.7z`), RAR (`.rar`, RAR 4 and RAR 5), tar (`.tar`) and gzip (`.tgz`, `.tar.gz`, `.gz`) archives are searched the same way as ZIP archives. A `.gz` file that isn't tar archive is searched as the file it contains.
 - Text recognition (OCR) for scanned PDFs and images (`.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`), using Tesseract (tesseract.js). OCR runs on your computer; only English ships with the app, and any other language is downloaded when you add it in Settings; your files are never uploaded. Previously skipped scanned PDFs are indexed again automatically.
-- Choose the languages text recognition reads in Settings > Search: add languages from the available list to the selected list. English is always included and the app language is added by default. The app languages' data ships with the app; any of the other 100+ Tesseract languages is downloaded once when you add it. Changing the languages reads scanned files again.
+- Choose the languages text recognition reads in Settings > Search: add languages from the available list to the selected list. English is always included and ships with the app; any of the other 100+ Tesseract languages is downloaded once when you add it. Changing the languages reads scanned files again.
 - Search results for scanned PDFs and images show a thumbnail of the part of the page where the match was recognized, with the match highlighted.
 
 - Existing installs get the new extensions added to the indexed file extensions automatically.

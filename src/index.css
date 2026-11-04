@@ -1198,7 +1198,7 @@ button.primary:hover {
 @media (prefers-reduced-motion: reduce) {
   .container:has(.ai-mode.enabled)::before,
   .container:has(.ai-mode.enabled)::after,
-  .ai-mode.active:after,
+  .ai-mode.active::after,
   .ai-mode.active.enabled::before {
     animation: none;
   }
@@ -1343,7 +1343,7 @@ button.primary:hover {
     border-color: #000;
     box-shadow: 0 0 16px #000000cc;
   }
-  .container.container:has(.ai-mode.enabled) {
+  .container:has(.ai-mode.enabled) {
     --ai-fill: #1e1e1e;
     border-color: transparent;
     box-shadow: none;
@@ -1360,7 +1360,13 @@ button.primary:hover {
   .ai-mode.active::before {
     background-color: #333;
   }
-  /* Dark text stays readable on the yellow fill. */
+  .ai-mode.active svg {
+    fill: #eee;
+  }
+  .ai-mode.active .ai-mode-label {
+    color: #eee;
+  }
+  /* Dark text stays readable on the light gradient fill. */
   .ai-mode.active.enabled svg {
     fill: #1f1f1f;
   }
