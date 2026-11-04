@@ -1,5 +1,5 @@
 // Every language tesseract.js publishes as @tesseract.js-data/<code>, by Tesseract code.
-// Those used by an app language in lang.js ship with app; the rest are downloaded when selected.
+// Only English ships with the app; the rest are downloaded when selected.
 const OcrLanguages = {
   afr: 'Afrikaans',
   amh: 'Amharic',

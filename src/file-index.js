@@ -1,11 +1,16 @@
 const path = require('node:path');
 const Database = require('better-sqlite3');
 const { findHighlights, parseBooleanQuery, parseSearchQuery } = require('./search');
+const { similarity } = require('./semantic');
 
 const MAX_RESULTS = 500;
 const PREVIEW_BEFORE = 80;
 const PREVIEW_LENGTH = 240;
 const MIN_TRIGRAM_QUERY_LENGTH = 3;
+// AI Mode keeps files scoring at least this, and within the spread of the best match.
+// e5 similarities bunch up: unrelated text still scores around 0.75.
+const MIN_SEMANTIC_SCORE = 0.8;
+const SEMANTIC_SCORE_SPREAD = 0.08;
 
 const STATE_PENDING = 0;
 const STATE_INDEXED = 1;
@@ -53,6 +58,18 @@ class FileIndex {
       CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
       -- Page positions of OCR'd words, used for result thumbnails. See extractText in search.js
       CREATE TABLE IF NOT EXISTS ocr_layouts (file_id INTEGER PRIMARY KEY, layout TEXT NOT NULL);
+      -- AI Mode vectors of the start of each file (see semantic.js); start/length locate the chunk in content.
+      CREATE TABLE IF NOT EXISTS file_vectors (
+        file_id INTEGER NOT NULL,
+        chunk INTEGER NOT NULL,
+        start INTEGER NOT NULL,
+        length INTEGER NOT NULL,
+        scale REAL NOT NULL,
+        vector BLOB NOT NULL,
+        PRIMARY KEY (file_id, chunk)
+      );
+      -- The file version the vectors were made from. Kept apart from files, whose updates rewrite the FTS row.
+      CREATE TABLE IF NOT EXISTS embedded_files (file_id INTEGER PRIMARY KEY, modified_ms REAL NOT NULL);
 
       -- Trigram tokens give case-insensitive substring matching, including for CJK text.
       CREATE VIRTUAL TABLE IF NOT EXISTS files_fts USING fts5(
@@ -148,6 +165,48 @@ class FileIndex {
       WHERE f.state = ${STATE_INDEXED} AND f.content LIKE @like ESCAPE '\\'
       ORDER BY f.modified_ms DESC
     `));
+
+    const notEmbedded = `
+      FROM files f LEFT JOIN embedded_files e ON e.file_id = f.id AND e.modified_ms = f.modified_ms
+      WHERE f.state = ${STATE_INDEXED}
+    `;
+    this.nextToEmbedStatement = this.db.prepare(`
+      SELECT f.id, f.path, f.modified_ms AS modifiedMs, f.content
+      ${notEmbedded} AND e.file_id IS NULL
+      ORDER BY f.modified_ms DESC LIMIT 1
+    `);
+    this.embeddingStatsStatement = this.db.prepare(`
+      SELECT count(e.file_id) AS embedded, count(*) - count(e.file_id) AS pending ${notEmbedded}
+    `);
+    this.deleteVectorsStatement = this.db.prepare('DELETE FROM file_vectors WHERE file_id = ?');
+    this.deleteEmbeddedStatement = this.db.prepare('DELETE FROM embedded_files WHERE file_id = ?');
+    this.inertVectorStatement = this.db.prepare(`
+      INSERT INTO file_vectors(file_id, chunk, start, length, scale, vector)
+      VALUES (@fileId, @chunk, @start, @length, @scale, @vector)
+    `);
+    this.markEmbeddedStatement = this.db.prepare(
+      'INSERT OR REPLACE INTO embedded_files(file_id, modified_ms) VALUES (?, ?)'
+    );
+    this.currentVersionStatement = this.db.prepare(
+      `SELECT 1 FROM files WHERE id = ? AND modified_ms = ? AND state = ${STATE_INDEXED}`
+    );
+    this.vectorStatement = this.db.prepare(`
+      SELECT v.file_id AS fileId, v.start, v.length, v.scale, v.vector
+      FROM file_vectors v JOIN files f ON f.id = v.file_id
+      WHERE f.state = ${STATE_INDEXED} AND f.modified_ms >= @from AND f.modified_ms < @to
+    `);
+    this.semanticHitStatement = this.db.prepare(`
+      SELECT path, modified_ms AS modifiedMs, length(content) AS textLength,
+        substr(content, @start, ${PREVIEW_LENGTH}) AS window
+      FROM files WHERE id = @id
+    `);
+    this.dateRangeStatement = this.db.prepare(`
+      SELECT path, modified_ms AS modifiedMs, length(content) AS textLength,
+        substr(content, 1, ${PREVIEW_LENGTH}) AS window
+      FROM files
+      WHERE state = ${STATE_INDEXED} AND modified_ms >= @from AND modified_ms < @to
+      ORDER BY modified_ms DESC LIMIT @limit
+    `);
   }
 
   beginScan() {
@@ -157,6 +216,10 @@ class FileIndex {
   finishScan(scanId) {
     this.removeUnseenStatement.run(scanId);
     this.removeOrphanLayoutsStatement.run();
+    this.db.exec(`
+      DELETE FROM file_vectors WHERE file_id NOT IN (SELECT id FROM files);
+      DELETE FROM embedded_files WHERE file_id NOT IN (SELECT id FROM files);
+    `);
   }
 
   keepFilesUnder(root, scanId) {
@@ -184,12 +247,103 @@ class FileIndex {
       if (!changes) return;
       if (layout) this.saveLayoutStatement.run(file.id, JSON.stringify(layout));
       else this.deleteLayoutStatement.run(file.id);
+      this.deleteVectors(file.id);
     })();
   }
 
   markSkipped(id) {
     this.markSkippedStatement.run(id);
     this.deleteLayoutStatement.run(id);
+    this.deleteVectors(id);
+  }
+
+  deleteVectors(id) {
+    this.deleteVectorsStatement.run(id);
+    this.deleteEmbeddedStatement.run(id);
+  }
+
+  // Vectors from another model can't be compared with this one's, so they are dropped.
+  useEmbeddingModel(modelId) {
+    const current = this.db.prepare("SELECT value FROM meta WHERE key = 'embedding_model'").get();
+    if (current?.value === modelId) return;
+    this.db.transaction(() => {
+      this.db.exec('DELETE FROM file_vectors; DELETE FROM embedded_files;');
+      this.db.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES ('embedding_model', ?)").run(modelId);
+    })();
+  }
+
+  // The newest indexed file whose current version has no vectors yet.
+  nextToEmbed() {
+    return this.nextToEmbedStatement.get();
+  }
+
+  embeddingStats() {
+    return this.embeddingStatsStatement.get();
+  }
+
+  // `chunks` is [{ start, length, vector, scale }]; empty marks a file that couldn't be embedded.
+  saveEmbeddings(file, chunks) {
+    this.db.transaction(() => {
+      // The file may have changed while it was being embedded.
+      if (!this.currentVersionStatement.get(file.id, file.modifiedMs)) return;
+      this.deleteVectorsStatement.run(file.id);
+      chunks.forEach(({ start, length, scale, vector }, chunk) => {
+        this.insertVectorStatement.run({ fileId: file.id, chunk, start, length, scale, vector });
+      });
+      this.markEmbeddedStatement.run(file.id, file.modifiedMs);
+    })();
+  }
+
+  // Ranks files by their best-matching chunk. Without a query vector, lists the files modified in
+  // the time range. `terms` are highlighted in the previews when they appear literally.
+  searchSemantic(queryVector, from, to, terms = []) {
+    const range = { from: from ?? 0, to: to ?? Number.MAX_SAFE_INTEGER };
+    let hits;
+    let limitReached;
+    if (queryVector) {
+      const best = new Map();
+      let topScore = -Infinity;
+      for (const row of this.vectorStatement.iterate(range)) {
+        const score = similarity(queryVector, row.vector, row.scale);
+        topScore = Math.max(topScore, score);
+        if (score > (best.get(row.fileId)?.score ?? -Infinity)) {
+          best.set(row.fileId, { id: row.fileId, start: row.start, score });
+        }
+      }
+      const ranked = [...best.values()]
+        .filter((hit) => hit.score >= MIN_SEMANTIC_SCORE && hit.score >= topScore - SEMANTIC_SCORE_SPREAD)
+        .sort((left, right) => right.score - left.score);
+      limitReached = ranked.length > this.maxResults;
+      hits = ranked.slice(0, this.maxResults).map((hit) => ({
+        ...this.semanticHitStatement.get({ id: hit.id, start: hit.start + 1 }),
+        start: hit.start
+      }));
+    } else {
+      hits = this.dateRangeStatement.all({ ...range, limit: this.maxResults + 1 }).map((row) => ({ ...row, start: 0 }));
+      limitReached = hits.length > this.maxResults;
+      hits = hits.slice(0, this.maxResults);
+    }
+
+    const results = hits.map((hit) => {
+      const prefix = hit.start > 0 ? '…' : '';
+      const suffix = hit.start + hit.window.length < hit.textLength ? '…' : '';
+      const highlights = terms
+        .flatMap((term) => findHighlights(hit.window, term))
+        .sort((left, right) => left.start - right.start)
+        .filter((match, i, all) => i === 0 || match.start >= all[i - 1].start + all[i - 1].length)
+        .map(({ start, length }) => ({ start: start + prefix.length, length }));
+      return {
+        path: hit.path,
+        name: path.basename(hit.path),
+        modified: hit.modifiedMs,
+        matchCount: 1,
+        preview: `${prefix}${hit.window}${suffix}`,
+        highlights,
+        ocrMatch: null,
+        semantic: true
+      };
+    });
+    return { results, limitReached };
   }
 
   // Finds the page box of the OCR'd words at content offset `start`. A match in the PDF text layer is
@@ -272,6 +426,8 @@ class FileIndex {
         DROP TRIGGER IF EXISTS files_ad;
         DELETE FROM files;
         DELETE FROM ocr_layouts;
+        DELETE FROM file_vectors;
+        DELETE FROM embedded_files;
         INSERT INTO files_fts(files_fts) VALUES ('delete-all');
         DELETE FROM meta WHERE key = 'initial_index_done';
         ${DELETE_TRIGGER}

@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   close: () => ipcRenderer.send('close'),
   hideToTray: () => ipcRenderer.send('hide-to-tray'),
   resizeToContent: (height) => ipcRenderer.send('resize-to-content', height),
-  search: (keyword) => ipcRenderer.invoke('search:start', keyword),
+  search: (keyword, ai = false) => ipcRenderer.invoke('search:start', keyword, ai),
   getIndexStatus: () => ipcRenderer.invoke('index:status'),
   getIndexLocation: () => ipcRenderer.invoke('index:location'),
   getDiskUsage: () => ipcRenderer.invoke('index:disk-usage'),
@@ -45,6 +45,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFile: (filePath) => ipcRenderer.invoke('file:open', filePath),
   openFolder: (filePath) => ipcRenderer.invoke('file:show-in-folder', filePath),
   getOcrThumbnail: (filePath, start, length) => ipcRenderer.invoke('ocr:thumbnail', filePath, start, length),
+  getAiState: () => ipcRenderer.invoke('ai:get'),
+  setAiEnabled: (enabled) => ipcRenderer.invoke('ai:set-enabled', enabled),
+  downloadAiModel: () => ipcRenderer.invoke('ai:download'),
+  cancelAiDownload: () => ipcRenderer.invoke('ai:cancel-download'),
+  removeAiModel: () => ipcRenderer.invoke('ai:remove'),
+  onAiState: (callback) => {
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('ai:state', listener);
+    return () => ipcRenderer.removeListener('ai:state', listener);
+  },
   onIndexStatus: (callback) => {
     const listener = (_event, status) => callback(status);
     ipcRenderer.on('index:status', listener);

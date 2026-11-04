@@ -1,6 +1,5 @@
 const { app, BrowserWindow, ipcMain, powerMonitor, Tray, Menu, screen, globalShortcut, shell, dialog, nativeTheme, net } = require('electron');
 if (require('electron-squirrel-startup')) app.quit();
-// const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs/promises');
 const { randomUUID } = require('crypto');
@@ -11,6 +10,8 @@ const {
 const { Languages } = require('./lang');
 const { OcrLanguages } = require('./ocr-languages');
 const { BUNDLED_LANGUAGES } = require('./ocr');
+const { MODEL_ID: AI_MODEL_ID, MODEL_FILES: AI_MODEL_FILES } = require('./semantic');
+const { error } = require('console');
 
 const IDLE_THRESHOLD_SECONDS = 60;
 const WORKER_RESTART_DELAY_MS = 5000;
@@ -20,6 +21,11 @@ const OCR_DATA_URL = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data/{code}@1.0
 const OCR_DATA_SUFFIX = '.traineddata.gz';
 const MAX_OCR_DATA_BYTES = 64 * 1024 * 1024;
 const OCR_DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+// The AI Mode model isn't shipped with the app; it is downloaded once when the user turns AI Mode on.
+const AI_MODEL_URL = 'https://huggingface.co/{model}/resolve/main/{file}';
+const MAX_AI_MODEL_FILE_BYTES = 512 * 1024 * 1024;
+const AI_DOWNLOAD_TIMEOUT_MS = 60 * 60 * 1000;
+const AI_PROGRESS_INTERVAL_MS = 250;
 
 let mainWindow;
 let tray;
@@ -44,6 +50,14 @@ let language = 'en';
 // Tesseract codes from ocr-languages.js; English is always first.
 let ocrLanguages = ['eng'];
 const ocrDownloads = new Map();
+// AI Model: `aiEnabled` is the user's switch; the worker loads the model once it's downloaded.
+let aiEnabled = false;
+let aiDownloaded = false;
+let aiDownloadAbort = null;
+let aiDownloadTask = null;
+let aiProgress = 0;
+let aiDownloadError = null;
+let aiProgressSentAt = 0;
 
 function translate(wordsCode) {
   return (Languages[language] || Languages.en)[wordsCode] || false;
@@ -129,9 +143,6 @@ ipcMain.handle('language:set', async (_event, value) => {
   language = value;
   updateTrayMenu();
   await saveSettings();
-  // The app language is preset for text recognition; the user can remove it again.
-  const ocrCode = Languages[language].ocr;
-  if (!ocrLanguages.includes(ocrCode)) await applyOcrLanguages([...ocrLanguages, ocrCode]);
   return language;
 });
 
@@ -200,6 +211,142 @@ ipcMain.handle('ocr-languages:remove', (_event, code) => {
   return applyOcrLanguages(ocrLanguages.filter((item) => item !== code));
 });
 
+function getAiModelDir() {
+  return path.join(app.getPath('userData'), 'ai-model');
+}
+
+const aiModelFile = (file) => path.join(getAiModelDir(), AI_MODEL_ID, ...file.split('/'));
+// Written once every file is in place, so an interrupted dwonload never counts as complete.
+const aiModelMarker = () => aiModelFile('.complete');
+
+function aiSnapshot() {
+  const model = indexStatus?.ai ?? {};
+  return {
+    enabled: aiEnabled,
+    downloaded: aiDownloaded,
+    downloading: Boolean(aiDownloadAbort),
+    progress: aiProgress,
+    downloadError: aiDownloadError,
+    state: model.state ?? 'off',
+    error: model.error ?? null,
+    embedded: model.embedded ?? 0,
+    pending: model.pending ?? 0
+  };
+}
+
+function sendAiState() {
+  mainWindow?.webContents.send('ai:state', aiSnapshot);
+}
+
+// Resolves once the worker has loaded or unloaded the model.
+function applyAiMode() {
+  if (!indexWorker) return Promise.resolve();
+  const requestId = randomUUID();
+  return new Promise((resolve, reject) => {
+    indexWorker.postMessage({
+      type: 'set-ai-model', requestId, modelDir: aiEnabled && aiDownloaded ? getAiModelDir() : null
+    });
+  }).catch(() => {
+    // A worker that stopped has no model loaded; the restarted one gets the current setting.
+  });
+}
+
+// `file` comes from AI_MODEL_FILES, which keeps the URL and path fixed.
+async function downloadAiFile(file, signal) {
+  const response = await net.fetch(AI_MODEL_URL.replace('{model}', AI_MODEL_ID).replace('{file}', file), { signal });
+  if (!response.ok) throw new Error(`Download failed (HTTP ${response.status}).`);
+  const total = Number(response.headers.get('content-length')) || 0;
+  if (total > MAX_AI_MODEL_FILE_BYTES) throw new Error('Download too large.');
+  const target = aiModelFile(file);
+  const partial = `${target}.download`;
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  try {
+    const handle = await fs.open(partial, 'w');
+    let loaded = 0;
+    try {
+      for await (const chunk of response.body) {
+        loaded += chunk.byteLength;
+        if (loaded > MAX_AI_MODEL_FILE_BYTES) throw new Error('Download too large.');
+        await handle.write(chunk);
+        if (total) reportAiProgress(loaded / total);
+      }
+    } finally {
+      await handle.close();
+    }
+    if (file.endsWith('.json')) JSON.parse(await fs.readFile(partial, 'utf8'));
+    await fs.rename(partial, target);
+  } catch (error) {
+    await fs.rm(partial, { force: true });
+    throw error;
+  }
+}
+
+function reportAiProgress(progress) {
+  aiProgress = progress;
+  if (Date.now() - aiProgressSentAt < AI_PROGRESS_INTERVAL_MS) return;
+  aiProgressSentAt = Date.now();
+  sendAiState();
+}
+
+async function downloadAiModel() {
+  if (aiDownloadAbort || aiDownloaded) return;
+  const controller = new AbortController();
+  aiDownloadAbort = controller;
+  aiDownloadError = null;
+  sendAiState();
+  try {
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(AI_DOWNLOAD_TIMEOUT_MS)]);
+    for (const file of AI_MODEL_FILES) {
+      aiProgress = 0;
+      await downloadAiFile(file, signal);
+    }
+    await fs.writeFile(aiModelMarker(), AI_MODEL_ID);
+    aiDownloaded = true;
+    applyAiMode();
+  } catch (error) {
+    if (!controller.signal.aborted) aiDownloadError = error.message;
+  } finally {
+    aiDownloadAbort = null;
+    sendAiState();
+  }
+}
+
+ipcMain.handle('ai:get', () => aiSnapshot());
+
+ipcMain.handle('ai:set-enabled', async (_event, enabled) => {
+  if (typeof enabled !== 'boolean') throw new Error('Invalid value.');
+  aiEnabled = enabled;
+  await saveSettings();
+  applyAiMode();
+  sendAiState();
+  return aiSnapshot();
+});
+
+ipcMain.handle('ai:download', () => {
+  if (!aiDownloadAbort && !aiDownloadTask) aiDownloadTask = downloadAiModel();
+  return aiSnapshot();
+});
+
+ipcMain.handle('ai:cancel-download', async () => {
+  aiDownloadAbort?.abort();
+  await aiDownloadTask;
+  return aiSnapshot();
+});
+
+// Also cancels a download in progress.
+ipcMain.handle('ai:remove', async () => {
+  aiDownloadAbort?.abort();
+  await aiDownloadTask;
+  aiDownloaded = false;
+  aiDownloadError = null;
+  aiProgress = 0;
+  // ONNX Runtime keeps the model file open while it's loaded.
+  await applyAiMode();
+  await fs.rm(getAiModelDir(), { recursive: true, force: true });
+  sendAiState();
+  return aiSnapshot();
+});
+
 ipcMain.on('minimize', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.minimize();
 });
@@ -242,15 +389,19 @@ ipcMain.on('close', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close();
 });
 
-ipcMain.handle('search:start', (_event, keyword) => {
+ipcMain.handle('search:start', (_event, keyword, ai = false) => {
   const query = typeof keyword === 'string' ? keyword.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
   if (!query) throw new Error('Enter a keyword to search.');
   if (!indexWorker) throw new Error('The search index is still starting.');
+  const useAi = ai === true;
+  if (useAi && !(aiEnabled && indexStatus?.ai?.state === 'ready')) {
+    throw new Error(translate('__ai_mode_not_ready__') || 'AI Mode is not ready.');
+  }
 
   const requestId = randomUUID();
   return new Promise((resolve, reject) => {
     pendingRequests.set(requestId, { resolve, reject });
-    indexWorker.postMessage({ type: 'search', requestId, query, caseSensitive, searchFileNames, maxResults });
+    indexWorker.postMessage({ type: 'search', requestId, query, caseSensitive, searchFileNames, maxResults, ai: useAi });
   });
 });
 
@@ -502,12 +653,14 @@ async function loadSettings() {
   const downloaded = new Set(await downloadedOcrLanguages());
   const saveOcr = Array.isArray(settings.ocrLanguages)
     ? settings.ocrLanguages.filter((code) => BUNDLED_LANGUAGES.has(code) || downloaded.has(code))
-    : [Languages[language].ocr];
+    : [];
   ocrLanguages = [...new Set(['eng', ...saveOcr])];
+  if (typeof settings.aiEnabled === 'boolean') aiEnabled = settings.aiEnabled;
+  aiDownloaded = await fs.access(aiModelMarker()).then(() => true, () => false);
 }
 
 function saveSettings() {
-  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, defaultExtensions: DEFAULT_EXTENSIONS, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused, language, ocrLanguages }, null, 2));
+  return fs.writeFile(getSettingsPath(), JSON.stringify({ indexPaths, indexExtensions, defaultExtensions: DEFAULT_EXTENSIONS, excludedFolders, hotkey, theme, launchAtStartup, caseSensitive, searchFileNames, maxResults, maxFileSizeMB, indexPaused, language, ocrLanguages, aiEnabled }, null, 2));
 }
 
 async function applyIndexPaths(paths) {
@@ -545,6 +698,13 @@ function handleWorkerMessage(message) {
   if (message.type === 'status') {
     indexStatus = message.status;
     mainWindow?.webContents.send('index:status', indexStatus);
+    sendAiState();
+    return;
+  }
+
+  if (message.type === 'ai-model-response') {
+    pendingRequests.get(message.requestId)?.resolve();
+    pendingRequests.delete(message.requestId);
     return;
   }
 
@@ -589,7 +749,8 @@ function startIndexWorker() {
       maxFileSizeMB,
       paused: indexPaused,
       ocrLanguages,
-      ocrDataDir: getOcrDataDir()
+      ocrDataDir: getOcrDataDir(),
+      aiModelDir: aiEnabled && aiDownloaded ? getAiModelDir() : null
     }
   });
   indexWorker.on('message', handleWorkerMessage);

@@ -4,7 +4,8 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
+| 1.2.x   | :white_check_mark: |
+| < 1.2   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -18,7 +19,8 @@ Because CherryQuery reads and indexes the contents of local files, reports invol
 - Leakage of indexed content or search queries off the device.
 - Code execution through crafted documents (for example `.docx`, `.xlsx`, `.pptx`, `.pdf`, `.odt`, or `.rtf` files).
 - Weaknesses in the Electron renderer, preload script, or IPC handlers.
+- Tampering with the AI Mode model download, or loading model files from outside CherryQuery's application data folder.
 
 The author will send a response indicating the next steps in handling your report. After the initial reply to your report, I will keep you informed of the progress towards a fix and full announcement, and may ask for additional information or guidance.
 
-Report security bugs in third-party modules (such as Electron, `better-sqlite3`, or `officeparser`) to the person or team maintaining the module. You can also report a vulnerability through the [npm contact form](https://www.npmjs.com/support) by selecting "I'm reporting a security vulnerability".
+Report security bugs in third-party modules (such as Electron, `better-sqlite3`, `officeparser`, `@huggingface/transformers`, or `onnxruntime-node`) to the person or team maintaining the module. You can also report a vulnerability through the [npm contact form](https://www.npmjs.com/support) by selecting "I'm reporting a security vulnerability".
