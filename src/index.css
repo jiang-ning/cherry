@@ -1264,7 +1264,8 @@ button.primary:hover {
   transition: width 0.2s;
 }
 
-#downloadModel {
+#downloadModel,
+#removeModel {
   margin-top: 20px;
 }
 
