@@ -268,7 +268,7 @@ const Languages = {
     "__downloading__": "Downloading...",
     "__download_failed__": "Download failed. Check your internet connection and try again.",
     "__ai_mode__": "AI Mode",
-    "__ai_mode_desc__": "Find files by meaning, not only by exact words. Runs on this computer; work in 100+ languages, time phrases in English only.",
+    "__ai_mode_desc__": "Find files by meaning, not only by exact words. Runs on this computer; works in 100+ languages, time phrases in English only.",
     "__ai_model_name__": "Model",
     "__ai_model_size__": "Size",
     "__ai_model_status__": "Status",
