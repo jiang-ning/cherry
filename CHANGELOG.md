@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.1]
+
+### Window
+- On Windows, clicking anywhere outside the app hides it to the tray. It stays open while a dialog such as Add Index Path or Clear Index is showing.
+
 ## [1.2.0]
 
 ### AI Mode

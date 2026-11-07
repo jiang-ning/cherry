@@ -29,6 +29,8 @@ const AI_PROGRESS_INTERVAL_MS = 250;
 let mainWindow;
 let tray;
 let isQuitting = false;
+// Native dialogs take focus from the main window; don't treat that as clicking outside.
+let dialogOpen = 0;
 let indexWorker;
 let idleReporter = null;
 let indexStatus = null;
@@ -86,9 +88,15 @@ const createWindow = () => {
     frame: false
   });
 
-  mainWindow.on('closse', (event) => {
+  mainWindow.on('close', (event) => {
     if (isQuitting) return;
     event.preventDefault();
+    mainWindow.hide();
+  });
+
+  mainWindow.on('blur', () => {
+    if (process.platform !== 'win32' || isQuitting || dialogOpen) return;
+    if (mainWindow.webContents.isDevToolsFocused()) return;
     mainWindow.hide();
   });
 
@@ -431,6 +439,7 @@ ipcMain.handle('index:set-paused', async (_event, paused) => {
 ipcMain.handle('index:clear', async (event) => {
   if (!indexWorker) throw new Error('The search index is not running.');
   const win = BrowserWindow.fromWebContents(event.sender);
+  dialogOpen++;
   const { response } = await dialog.showMessageBox(win, {
     type: 'warning',
     buttons: [translate('__clear_index__') || 'Clear Index', translate('__cancel__') || 'Cancel'],
@@ -439,7 +448,7 @@ ipcMain.handle('index:clear', async (event) => {
     title: translate('__clear_index__') || 'Clear Index',
     message: translate('__clear_the_index_db__') || 'Clear the index database?',
     detail: translate('__clear_index_detail__') || 'All indexed content will be removed. Indexing stays paused untill you click Resume Index.'
-  });
+  }).finally(() => { dialogOpen--; });
   if (response !== 0) return false;
 
   // Pause first so the worker does not start rebuilding the index as soon as it is cleared.
@@ -472,10 +481,11 @@ ipcMain.handle('index-paths:get', () => indexPaths);
 
 ipcMain.handle('index-paths:add', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
+  dialogOpen++;
   const { canceled, filePaths } = await dialog.showOpenDialog(win, {
     title: 'Add Index Path',
     properties: ['openDirectory', 'multiSelections']
-  });
+  }).finally(() => { dialogOpen--; });
   if (canceled) return indexPaths;
   const added = filePaths.filter((folder) => !indexPaths.includes(folder));
   return added.length ? applyIndexPaths([...indexPaths, ...added]) : indexPaths;
