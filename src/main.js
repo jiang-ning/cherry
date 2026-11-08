@@ -1149,7 +1149,7 @@ keywordInput.addEventListener('input', () => {
   welcomePinned = false;
   updateWelcome();
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(runSearch, 150);
+  debounceTimer = setTimeout(runSearch, 300);
 });
 keywordInput.addEventListener('scroll', () => {
   keywordHighlight.scrollLeft = keywordInput.scrollLeft;
