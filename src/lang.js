@@ -258,6 +258,8 @@ const Languages = {
     "__welcome_operator_example__": "e.g. <code>apple <span class=\"query-operator\">AND</span> pie</code>, <code>apple <span class=\"query-operator\">OR</span> pear</code>, <code>apple <span class=\"query-operator\">NOT</span> pie</code>",
     "__welcome_got_it__": "Got it",
     "__search_failed__": "Search failed",
+    "__loading__": "Loading...",
+    "__no_preview__": "No preview available.",
     "__open_cherryquery__": "Open",
     "__exit__": "Exit",
     "__cancel__": "Cancel",

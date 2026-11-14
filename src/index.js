@@ -81,7 +81,7 @@ const createWindow = () => {
     width: windowWidth(screen.getPrimaryDisplay().workArea, false),
     height: 100,
     center: true,
-    resizeble: false,
+    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
