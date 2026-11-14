@@ -1,9 +1,8 @@
 // Text recognition (OCR) for scanned PDFs and images with Tesseract (tesseract.js, WebAssembly).
 // PDF pages are rendered with PDF.js, images are decoded with @napi-rs/canvas, and TIFF with UTIF.
-// Everything runs on this computer: the language data ships with the app, so nothing is downloaded.
+// Everything runs on this computer: English ships with the app; other languages are downloaded by the main process.
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { Languages } = require('./lang');
 
 const MAX_OCR_PAGES = 50;
 // A PDF page with fewer non-space characters of text than this is treated as scanned and OCR'd.
@@ -139,8 +138,8 @@ async function* readPages(filePath, kind, first, count, scannedOnly = false) {
   yield { index: 0, page: drawPage(image, image.width, image.height) };
 }
 
-// Tesseract languages that ship with the app, as @tesseract.js-data packages: those of the app languages.
-const BUNDLED_LANGUAGES = new Set(Object.values(Languages).map((language) => language.ocr));
+// Only English ships with the app (@tesseract.js-data/eng); every other language is added by the user.
+const BUNDLED_LANGUAGES = new Set(['eng']);
 
 // `list` holds Tesseract codes, checked by the caller; English is always included.
 // `directory` holds downloaded language data and is where several languages are combined.
@@ -154,8 +153,8 @@ function configure(list, directory) {
   else stopWorker();
 }
 
-// tesseract.js reads every language from one folder, so bundled languages are copied next to the
-// downloaded ones in dataDir.
+// tesseract.js reads every language from one folder, so bundled English is copied next to the
+// downloaded languages in dataDir.
 async function languageDataPath() {
   const sourceDir = (code) => path.join(packageDir(`@tesseract.js-data/${code}`), '4.0.0_best_int');
   if (languages.length === 1) return sourceDir(languages[0]);

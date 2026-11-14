@@ -3,6 +3,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { FileIndex } = require('./file-index');
 const ocr = require('./ocr');
+const semantic = require('./semantic');
 const {
   MB, IMAGE_EXTENSIONS, extractText, isSupportedFile, isIgnoredDirectory
 } = require('./search');
@@ -39,6 +40,15 @@ let paused = Boolean(workerData.paused);
 let resumeWaiters = [];
 // Set by a clear so an in-flight scan stops instead of recording files against the wiped index.
 let abortScan = false;
+// AI Mode: 'off' until the main process hands over a downloaded model, then 'loading', 'ready' or 'error'.
+let aiState = 'off';
+let aiError = null;
+// Bumped on every model change, so work started with an older model is dropped.
+let aiGeneration = 0;
+// Set when the model loads: embed the whole backlog right away instead of waiting for idle time.
+let aiCatchUp = false;
+// Common words that would otherwise be highlighted all over AI Mode previews.
+const STOP_WORDS = new Set(['the', 'and', 'for', 'with', 'about', 'that', 'this', 'from', 'files', 'documents']);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // setTimeout has ~15ms resolution on Windows, so zero-length pauses yield with setImmediate instead.
@@ -64,7 +74,43 @@ function setPaused(value) {
 }
 
 function currentStatus() {
-  return { ...index.stats(), scanning, idle, initialIndexing, paused, error: lastError };
+  const ai = { state: aiState, error: aiError, ...(aiState === 'ready' ? index.embeddingStats() : {}) };
+  return { ...index.stats(), scanning, idle, initialIndexing, paused, error: lastError, ai };
+}
+
+// `modelDir` is null to turn AI Mode off.
+async function setAiModel(modelDir) {
+  const generation = ++aiGeneration;
+  aiState = modelDir ? 'loading' : 'off';
+  aiError = null;
+  postStatus(true);
+  try {
+    if (!modelDir) {
+      await semantic.unloadModel();
+      return;
+    }
+    await semantic.loadModel(modelDir);
+    if (generation !== aiGeneration) {
+      if (aiState === 'off') await semantic.unloadModel();
+      return;
+    }
+    index.useEmbeddingModel(semantic.MODEL_ID);
+    aiState = 'ready';
+    aiCatchUp = true;
+  } catch (error) {
+    if (generation !== aiGeneration) return;
+    aiState = 'error';
+    aiError = error.message;
+  }
+  postStatus(true);
+}
+
+async function searchByMeaning(query) {
+  if (aiState !== 'ready') throw new Error('AI Mode is not ready.');
+  const { topic, from, to } = semantic.parseTimeQuery(query);
+  const vector = topic ? await semantic.embedQuery(topic) : null;
+  const terms = topic.split(' ').filter((word) => [...word].length >= 3 && !STOP_WORDS.has(word.toLowerCase()));
+  return index.searchSemantic(vector, from, to, terms);
 }
 
 // Returns { directory } or { file } for entries worth visiting, otherwise null.
@@ -223,6 +269,42 @@ function requestCatchUp() {
   wakeScan?.();
 }
 
+// Embeds indexed files for AI Mode, newest first, on the same schedule as content extraction.
+async function embedLoop() {
+  for (;;) {
+    await waitWhilePaused();
+    try {
+      const file = aiState === 'ready' ? index.nextToEmbed() : null;
+      if (!file && aiCatchUp && aiState === 'ready') {
+        aiCatchUp = false;
+        postStatus(true);
+      }
+      const eager = idle || initialIndexing || aiCatchUp;
+      const isRecent = file && file.modifiedMs >= Date.now() - RECENT_WINDOW_MS;
+      if (!file || (!isRecent && !eager)) {
+        await sleep(WAIT_MS);
+        continue;
+      }
+
+      const generation = aiGeneration;
+      let chunks = [];
+      try {
+        chunks = await semantic.embedPassages(path.basename(file.path), file.content);
+      } catch {
+        // A file the model can't read is recorded without vectors so it isn't retried.
+      }
+      if (generation !== aiGeneration) continue;
+      index.saveEmbeddings(file, chunks);
+      postStatus();
+      await pause(eager ? 0 : 200);
+    } catch (error) {
+      lastError = error.message;
+      postStatus(true);
+      await sleep(WAIT_MS);
+    }
+  }
+}
+
 parentPort.on('message', (message) => {
   if (message.type === 'idle') {
     const wasIdle = idle;
@@ -269,6 +351,13 @@ parentPort.on('message', (message) => {
     return;
   }
 
+  if (message.type === 'set-ai-model') {
+    setAiModel(message.modelDir).finally(() => {
+      parentPort.postMessage({ type: 'ai-model-response', requestId: message.requestId });
+    });
+    return;
+  }
+
   if (message.type === 'clear') {
     try {
       index.clear();
@@ -302,6 +391,18 @@ parentPort.on('message', (message) => {
     return;
   }
 
+  if (message.type === 'search' && message.ai) {
+    const reply = (fields) => parentPort.postMessage({
+      type: 'search-response', requestId: message.requestId, ...fields
+    });
+    index.maxResults = message.maxResults;
+    searchByMeaning(message.query).then(
+      ({ results, limitReached }) => reply({ results, limitReached, status: currentStatus() }),
+      (error) => reply({ error: error.message })
+    );
+    return;
+  }
+
   if (message.type === 'search') {
     try {
       index.maxResults = message.maxResults;
@@ -323,3 +424,5 @@ parentPort.on('message', (message) => {
 postStatus(true);
 scanLoop();
 indexLoop();
+embedLoop();
+if (workerData.aiModelDir) setAiModel(workerData.aiModelDir);

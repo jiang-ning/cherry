@@ -1,13 +1,30 @@
 # Changelog
 
+## [1.2.1]
+
+### Window
+- On Windows, clicking anywhere outside the app hides it to the tray. It stays open while a dialog such as Add Index Path or Clear Index is showing.
+
+## [1.2.0]
+
+### AI Mode
+- Search by meaning: with AI Mode on, a query such as `invoice from last spring` finds matching documents even when they don't contain those exact words.
+- Time phrases in English narrow results by the date a file was last modified, e.g. `last spring`, `in march`, `march 2024`, `last week`, `this year`, `yesterday`, `past 3 months`, `since last summer` or `2023`. A query with only a time phrase lists the files modified in that period.
+- Uses a small multilingual model (multilingual-e5-small, about 135 MB) that runs on your computer. It isn't included with the app: download it once in Settings > AI Mode, from Hugging Face. Your files and searches are never uploaded.
+- Meaning search works in all the app's languages (Arabic, Chinese, English, French, German, Italian, Japanese and Spanish) and many more, also across languages, e.g. an English query can find a German document. Time phrases are understood in English only.
+- Settings > AI Mode has a switch to turn AI Mode on or off, and Download and Remove buttons for the model. Turning AI Mode off keeps the downloaded model; only Remove deletes it. While the model downloads, the Download button becomes Cancel.
+- The AI Mode button next to the search box becomes available once AI Mode is on and the model is ready; click it to switch between keyword and AI search. Before that, clicking it opens Settings > AI Mode.
+- Settings > AI Mode shows the download progress and how many files have been analyzed. Files are analyzed in the background, newest first, right after the model is first loaded and afterwards on the same schedule as indexing. Pause Index also pauses this, and Clear Index removes the analysis results.
+- Only the beginning of each file (about the first 4,800 characters) is used for AI search.
+
 ## [1.1.0]
 
 ### Supported files
 - Email files (`.eml` and Outlook `.msg`): the subject, sender, recipients, body, and attachment names and contents are searched.
 - ZIP archives (`.zip`): the names and contents of the files inside are searched, including archives and emails nested up to 3 levels deep.
 - 7-ZIP (`.7z`), RAR (`.rar`, RAR 4 and RAR 5), tar (`.tar`) and gzip (`.tgz`, `.tar.gz`, `.gz`) archives are searched the same way as ZIP archives. A `.gz` file that isn't tar archive is searched as the file it contains.
-- Text recognition (OCR) for scanned PDFs and images (`.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`), using Tesseract (tesseract.js). OCR runs on your computer with language data that ships with the app or that you choose to download; your files are never uploaded. Previously skipped scanned PDFs are indexed again automatically.
-- Choose the languages text recognition reads in Settings > Search: add languages from the available list to the selected list. English is always included and the app language is added by default. The app languages' data ships with the app; any of the other 100+ Tesseract languages is downloaded once when you add it. Changing the languages reads scanned files again.
+- Text recognition (OCR) for scanned PDFs and images (`.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`), using Tesseract (tesseract.js). OCR runs on your computer; only English ships with the app, and any other language is downloaded when you add it in Settings; your files are never uploaded. Previously skipped scanned PDFs are indexed again automatically.
+- Choose the languages text recognition reads in Settings > Search: add languages from the available list to the selected list. English is always included and ships with the app; any of the other 100+ Tesseract languages is downloaded once when you add it. Changing the languages reads scanned files again.
 - Search results for scanned PDFs and images show a thumbnail of the part of the page where the match was recognized, with the match highlighted.
 
 - Existing installs get the new extensions added to the indexed file extensions automatically.

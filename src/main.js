@@ -218,7 +218,9 @@ function renderFile(file) {
   const location = document.createElement('div');
   location.className = 'file-path';
   // location.textContent = `${file.path} • ${file.matchCount} ${file.matchCount === 1 ? 'match' : 'matches'}`;
-  location.textContent = `${file.matchCount} ${file.matchCount === 1 ? 'match' : 'matches'} • `;
+  location.textContent = file.semantic
+    ? `${translate('__ai_match__') || 'AI match'} • `
+    : `${file.matchCount} ${file.matchCount === 1 ? 'match' : 'matches'} • `;
   location.append(modified);
 
   const preview = document.createElement('p');
@@ -280,7 +282,7 @@ async function runSearch() {
   const searchId = ++currentSearchId;
 
   try {
-    const { results, limitReached, status } = await window.electronAPI.search(keyword);
+    const { results, limitReached, status } = await window.electronAPI.search(keyword, isAiSearch());
     if (searchId !== currentSearchId) return;
     indexStatus = status;
 
@@ -597,6 +599,112 @@ searchFileNames.addEventListener('change', async () => {
     searchFileNames.checked = !searchFileNames.checked;
   }
 });
+
+const aiModeButton = document.getElementById('aiMode');
+const enableAiMode = document.getElementById('enableAiMode');
+const aiModelStatus = document.getElementById('aiModelStatus');
+const aiModelProgress = document.getElementById('aiModelProgress');
+const downloadModelButton = document.getElementById('downloadModel');
+const removeModelButton = document.getElementById('removeModel');
+const aiSettingIndex = [...settingItems].findIndex((item) => item.classList.contains('ai-mode-section'));
+const AI_SEARCH_KEY = 'aiSearch';
+let aiState = null;
+// The AI Mode button's on/off choice; it only takes effect while the model is ready.
+let aiSearch = localStorage.getItem(AI_SEARCH_KEY) === '1';
+
+function isAiReady() {
+  return Boolean(aiState?.enabled && aiState.state === 'ready');
+}
+
+function isAiSearch() {
+  return isAiReady() && aiSearch;
+}
+
+function describeAi(state) {
+  if (state?.enabled && state.state === 'ready') {
+    const total = (state.embedded + state.pending).toLocaleString();
+    return `${translate('__ai_ready__') || 'Ready.'} ${state.embedded.toLocaleString()} / ${total} ${translate('__ai_files_analyzed__') || 'files analyzed.'}`;
+  }
+  return `${translate('__ai_not_ready__') || 'Not ready.'} ${describeAiNotReady(state)}`.trim();
+}
+
+function describeAiNotReady(state) {
+  if (!state) return '';
+  if (state.downloading) {
+    return `${translate('__ai_downloading_model__') || 'Downloading the model...'} ${Math.round(state.progress * 100)}%`;
+  }
+  if (state.downloadError) {
+    return `${translate('__download_failed__') || 'Download failed. Check your internet connection and try again.'} (${state.downloadError})`;
+  }
+  if (!state.downloaded) return translate('__ai_model_not_downloaded__') || 'Download the model to use AI Mode.';
+  if (!state.enabled) return translate('__ai_mode_off__') || 'The model is downloaded. Turn on AI Mode to use it.';
+  if (state.state === 'loading') return translate('__ai_loading_model__') || 'Loading the model...';
+  if (state.state === 'error') return `${translate('__ai_model_error__') || 'The model could not be loaded:'} ${state.error}`;
+  return translate('__ai_starting__') || 'Starting...';
+}
+
+function renderAiState(state) {
+  const wasAiSearch = isAiSearch();
+  aiState = state;
+  aiModeButton.classList.toggle('active', isAiReady());
+  aiModeButton.classList.toggle('enabled', isAiSearch());
+  enableAiMode.checked = Boolean(state?.enabled);
+  aiModelStatus.textContent = describeAi(state);
+  aiModelProgress.hidden = !state?.downloading;
+  aiModelProgress.value = state?.progress ?? 0;
+  downloadModelButton.hidden = Boolean(state?.downloaded);
+  downloadModelButton.disabled = !state;
+  downloadModelButton.textContent = state?.downloading
+    ? translate('__cancel__') || 'Cancel'
+    : translate('__download_model__') || 'Download';
+  removeModelButton.hidden = !state?.downloaded;
+  // The shown results came from the other kind of search.
+  if (isAiSearch() !== wasAiSearch) runSearch();
+}
+
+aiModeButton.addEventListener('click', () => {
+  // Without `active` (AI Mode off or model not ready), the button leads to the AI Mode settings.
+  if (!aiModeButton.classList.contains('active')) {
+    welcomePinned = false;
+    settingsPanel.hidden = false;
+    fileList.hidden = true;
+    showSettingItem(aiSettingIndex);
+    updateWelcome();
+    return;
+  }
+  aiSearch = !aiModeButton.classList.contains('enabled');
+  aiModeButton.classList.toggle('enabled', aiSearch);
+  if (aiSearch) localStorage.setItem(AI_SEARCH_KEY, '1');
+  else localStorage.removeItem(AI_SEARCH_KEY);
+  runSearch();
+  keywordInput.focus();
+});
+
+enableAiMode.addEventListener('change', async () => {
+  try {
+    renderAiState(await window.electronAPI.setAiEnabled(enableAiMode.checked));
+  } catch {
+    enableAiMode.checked = !enableAiMode.checked;
+  }
+});
+downloadModelButton.addEventListener('click', async () => {
+  renderAiState(await (aiState?.downloading
+    ? window.electronAPI.cancelAiDownload()
+    : window.electronAPI.downloadAiModel()
+  ));
+});
+removeModelButton.addEventListener('click', async () => {
+  removeModelButton.disabled = true;
+  try {
+    renderAiState(await window.electronAPI.removeAiModel());
+  } finally {
+    removeModelButton.disabled = false;
+  }
+});
+document.addEventListener('app-language-change', () => renderAiState(aiState));
+window.electronAPI?.onAiState(renderAiState);
+window.electronAPI?.getAiState().then(renderAiState);
+renderAiState(null);
 
 const ocrSelectedList = document.getElementById('ocrSelectedList');
 const ocrAvailableList = document.getElementById('ocrAvailableList');
@@ -1041,7 +1149,7 @@ keywordInput.addEventListener('input', () => {
   welcomePinned = false;
   updateWelcome();
   clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(runSearch, 150);
+  debounceTimer = setTimeout(runSearch, 300);
 });
 keywordInput.addEventListener('scroll', () => {
   keywordHighlight.scrollLeft = keywordInput.scrollLeft;

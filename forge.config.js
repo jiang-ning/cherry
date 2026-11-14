@@ -1,7 +1,8 @@
 module.exports = {
   packagerConfig: {
     // tesseract.js starts its own worker thread and reads WebAssembly and language files, which must be real files.
-    asar: { unpack: '**/node_modules/{tesseract.js,tesseract.js-core,@tesseract.js-data}/**' },
+    // ONNX Runtime and sharp (used by @huggingface/transformers) load DLLs that sit next to their .node binaries.
+    asar: { unpack: '**/node_modules/{tesseract.js,tesseract.js-core,@tesseract.js-data,onnxruntime-node,sharp,@img}/**' },
     icon: './src/images/logo.ico'
   },
   rebuildConfig: {

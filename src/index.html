@@ -33,6 +33,13 @@
         <div id="keywordHighlight" aria-hidden="true"></div>
         <input id="keyword" type="text" autofocus />
       </div>
+      <!-- AI mode -->
+      <div id="aiMode" class="ai-mode">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M7.657 6.247c.11-.33.576-.33.686 0l.645 1.937a2.89 2.89 0 0 0 1.829 1.828l1.936.645c.33.11.33.576 0 .686l-1.937.645a2.89 2.89 0 0 0-1.828 1.829l-.645 1.936a.361.361 0 0 1-.686 0l-.645-1.937a2.89 2.89 0 0 0-1.828-1.828l-1.937-.645a.361.361 0 0 1 0-.686l1.937-.645a2.89 2.89 0 0 0 1.828-1.828zM3.794 1.148a.217.217 0 0 1 .412 0l.387 1.162c.173.518.579.924 1.097 1.097l1.162.387a.217.217 0 0 1 0 .412l-1.162.387A1.73 1.73 0 0 0 4.593 5.69l-.387 1.162a.217.217 0 0 1-.412 0L3.407 5.69A1.73 1.73 0 0 0 2.31 4.593l-1.162-.387a.217.217 0 0 1 0-.412l1.162-.387A1.73 1.73 0 0 0 3.407 2.31zM10.863.099a.145.145 0 0 1 .274 0l.258.774c.115.346.386.617.732.732l.774.258a.145.145 0 0 1 0 .274l-.774.258a1.16 1.16 0 0 0-.732.732l-.258.774a.145.145 0 0 1-.274 0l-.258-.774a1.16 1.16 0 0 0-.732-.732L9.1 2.137a.145.145 0 0 1 0-.274l.774-.258c.346-.115.617-.386.732-.732z"/>
+        </svg>
+        <span class="ai-mode-label" data-lang-innertext="__ai_mode__">AI Mode</span>
+      </div>
     </div>
     <div id="fileList" hidden></div>
     <div id="settings" hidden>
@@ -42,6 +49,7 @@
           <span class="setting-menu-item active" data-lang-innertext="__general__">General</span>
           <span class="setting-menu-item" data-lang-innertext="__index__">Index</span>
           <span class="setting-menu-item" data-lang-innertext="__search__">Search</span>
+          <span class="setting-menu-item" data-lang-innertext="__ai_mode__">AI Mode</span>
           <span class="setting-menu-item" data-lang-innertext="__hotkeys__">Hotkeys</span>
           <span class="setting-menu-seperator">|</span>
           <span id="btnWelcomeScreen" class="setting-menu-item" data-lang-innertext="__welcome__">Welcome</span>
@@ -112,11 +120,12 @@
           <div class="general-row">
             <div class="setting-section">
               <div class="setting-name" data-lang-innertext="__version__">Version:</div>
-              <div class="setting-contents">1.1.0</div>
+              <div class="setting-contents">1.2.2</div>
             </div>
           </div><!-- end of row 3 -->
         </div>
 
+        <!-- Index section -->
         <div class="setting-item">
 
           <div class="setting-contents">
@@ -226,6 +235,39 @@
           </div>
         </div>
         <!-- end of Search section -->
+
+        <!-- AI Mode section -->
+        <div class="setting-item ai-mode-section">
+          <div class="setting-contents">
+            <label class="switch">
+              <input id="enableAiMode" type="checkbox" />
+              <span class="switch-slider"></span>
+              <span class="switch-text" data-lang-innertext="__ai_mode__">AI Mode</span>
+            </label>
+            <p class="ai-mode-desc" data-lang-innertext="__ai_mode_desc__">Find files by meaning, not only by exact words. Runs on this computer; works in 100+ languages, time phrases in English only.</p>
+            <dl class="ai-model-info">
+              <dt data-lang-innertext="__ai_model_name__">Model</dt>
+              <dd><bdi dir="ltr">multilingual-e5-small</bdi></dd>
+              <dt data-lang-innertext="__ai_model_size__">Size</dt>
+              <dd><bdi dir="ltr">~135 MB</bdi></dd>
+              <dt data-lang-innertext="__ai_model_status__">Status</dt>
+              <dd>
+                <div id="aiModelStatus" class="ai-model-status"></div>
+                <progress id="aiModelProgress" class="ai-model-progress" max="1" value="0" hidden></progress>
+              </dd>
+              <dt data-lang-innertext="__ai_examples__">Examples</dt>
+              <dd class="ai-examples">
+                <code>invoice from last spring</code>
+                <code>contract with the landlord</code>
+                <code>meeting notes last month</code>
+                <code>travel receipts 2024</code>
+              </dd>
+            </dl>
+            <button id="downloadModel" data-lang-innertext="__download_model__">Download</button>
+            <button id="removeModel" data-lang-innertext="__remove__" hidden>Remove</button>
+          </div>
+        </div>
+        <!-- end of AI mode section -->
 
         <div class="setting-item">
           <div class="setting-contents">

@@ -131,6 +131,16 @@ button.primary:hover {
   pointer-events: none;
 }
 
+.container:has(#fileList:not([hidden]), #settings:not([hidden]), #welcome:not([hidden])) #keywordHighlight {
+  box-shadow: inset 0 0 0 1px #ccc;
+  border-radius: 30px;
+  padding: 4px 16px;
+}
+.container:has(#fileList:not([hidden]), #settings:not([hidden]), #welcome:not([hidden])) #keyword {
+  border-radius: 30px;
+  padding: 4px 16px;
+}
+
 .query-operator {
   border-radius: 3px;
   background: #ddf6f0;
@@ -187,7 +197,6 @@ button.primary:hover {
 #settings {
   max-height: 500px;
   overflow-y: auto;
-  border-top: 1px solid #ccc;
   padding: 10px 16px;
   margin-bottom: 16px;
 }
@@ -395,7 +404,6 @@ button.primary:hover {
 }
 
 #welcome {
-  border-top: 1px solid #ccc;
   padding: 10px 16px;
   margin-bottom: 16px;
   color: #666;
@@ -1075,6 +1083,200 @@ button.primary:hover {
   border-color: transparent;
 }
 
+.ai-mode {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #eee;
+  padding: 8px 10px;
+  border-radius: 26px;
+  margin: 0 4px;
+  cursor: pointer;
+}
+.ai-mode svg {
+  fill: #ccc;
+}
+.ai-mode-label {
+  color: #ccc;
+  font-size: 11px;
+  font-weight: 600;
+}
+@property --ai-glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes ai-glow-spin {
+  to {
+    --ai-glow-angle: 360deg;
+  }
+}
+.ai-mode.active {
+  position: relative;
+  isolation: isolate;
+  background-color: transparent;
+}
+/* Fill painted as a layer so the glow can sit behind it */
+.ai-mode.active::before,
+.ai-mode.active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.ai-mode.active::before {
+  z-index: -1;
+  background-color: #f3f5f6;
+}
+.ai-mode.active::after {
+  z-index: -2;
+  background: conic-gradient(
+    from var(--ai-glow-angle),
+    #4285f4,
+    #9b72cb,
+    #d96570,
+    #f4b400,
+    #0f9d58,
+    #4285f4
+  );
+  filter: blur(8px);
+  opacity: 0;
+  transition: opacity 0.2s;
+  animation: ai-glow-spin 4s linear infinite;
+}
+.ai-mode.active:not(.enabled):hover::after {
+  opacity: 0.8;
+}
+.ai-mode.active.enabled::before {
+  box-shadow: inset 0px 2px 1px #4a263833;
+  /* The white layer softens the colors so the dark icon and label stay readable. */
+  background:
+    linear-gradient(#ffffff99, #ffffff99),
+    conic-gradient(
+      from var(--ai-glow-angle),
+      #4285f4,
+      #9b72cb,
+      #d96570,
+      #f4b400,
+      #0f9d58,
+      #4285f4
+    );
+  animation: ai-glow-spin 4s linear infinite;
+}
+.container:has(.ai-mode.enabled) {
+  --ai-fill: #ffffff;
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  box-shadow: none;
+}
+.container:has(.ai-mode.enabled)::before,
+.container:has(.ai-mode.enabled)::after {
+  --ai-glow-gradient: conic-gradient(
+    from var(--ai-glow-angle),
+    #4285f4,
+    #9b72cb,
+    #d96570,
+    #f4b400,
+    #0f9d58,
+    #4285f4
+  );
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  animation: ai-glow-spin 4s linear infinite;
+  pointer-events: none;
+}
+/* Gradient ring; the fill hides the glow layer inside the container */
+.container:has(.ai-mode.enabled)::before {
+  z-index: -1;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--ai-fill), var(--ai-fill)) padding-box,
+    var(--ai-glow-gradient) border-box;
+}
+.container:has(.ai-mode.enabled)::after {
+  z-index: -2;
+  background: var(--ai-glow-gradient);
+  filter: blur(12px);
+  opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .container:has(.ai-mode.enabled)::before,
+  .container:has(.ai-mode.enabled)::after,
+  .ai-mode.active::after,
+  .ai-mode.active.enabled::before {
+    animation: none;
+  }
+}
+.ai-mode.active svg {
+  fill: #4a2638;
+}
+.ai-mode.active .ai-mode-label {
+  color: #4a2638;
+}
+
+.ai-mode-desc {
+  margin: 12px 0 8px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.ai-model-info {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0;
+}
+.ai-model-info dt {
+  font-weight: 600;
+}
+.ai-model-info dd {
+  margin: 0;
+  min-width: 0;
+}
+.ai-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ai-examples code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #f3f5f6;
+}
+
+.ai-model-progress {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 6px;
+  margin-top: 6px;
+  appearance: none;
+  border: none;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ai-model-progress[hidden] {
+  display: none;
+}
+/* Custom parts, since Chromium darkens accent-color for contrast. */
+.ai-model-progress::-webkit-progress-bar {
+  background-color: #f1f1f1;
+}
+.ai-model-progress::-webkit-progress-value {
+  background-color: #ffe8a3;
+  border-radius: 3px;
+  transition: width 0.2s;
+}
+
+#downloadModel,
+#removeModel {
+  margin-top: 20px;
+}
+
 /* Arabic Support */
 .ar {
   direction: rtl;
@@ -1102,9 +1304,15 @@ button.primary:hover {
   unicode-bidi: plaintext;
 }
 .ar .intro-item code,
-.ar .intro-item .query-operator {
+.ar .intro-item .query-operator,
+.ar .ai-examples code {
   direction: ltr;
   unicode-bidi: isolate;
+}
+/* The status mixes translated text with English error message and numbers. */
+.ar .ai-model-status {
+  unicode-bidi: plaintext;
+  text-align: right;
 }
 .ar .open-file {
   margin-left: 10px;
@@ -1144,6 +1352,46 @@ button.primary:hover {
     border-color: #000;
     box-shadow: 0 0 16px #000000cc;
   }
+  .container:has(.ai-mode.enabled) {
+    --ai-fill: #1e1e1e;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .ai-mode {
+    background-color: #ffffff14;
+  }
+  .ai-mode svg {
+    fill: #666;
+  }
+  .ai-mode-label {
+    color: #666;
+  }
+  .ai-mode.active::before {
+    background-color: #333;
+  }
+  .ai-mode.active svg {
+    fill: #eee;
+  }
+  .ai-mode.active .ai-mode-label {
+    color: #eee;
+  }
+  /* Dark text stays readable on the light gradient fill. */
+  .ai-mode.active.enabled svg {
+    fill: #1f1f1f;
+  }
+  .ai-mode.active.enabled .ai-mode-label {
+    color: #1f1f1f;
+  }
+  .ai-examples code {
+    background: #ffffff1a;
+    color: #ddd;
+  }
+  .ai-model-progress::-webkit-progress-bar {
+    background-color: #ffffff1a;
+  }
+  .ai-model-progress::-webkit-progress-value {
+    background-color: #ffda6a99;
+  }
   #welcome {
     color: #ccc;
   }
@@ -1156,6 +1404,16 @@ button.primary:hover {
   #settings,
   #fileList {
     border-color: #000;
+  }
+  .container:has(#fileList:not([hidden]), #settings:not([hidden]), #welcome:not([hidden])) #keywordHighlight {
+    background-color: #333;
+    box-shadow: inset 0 0 0 1px #000;
+    border-radius: 30px;
+    padding: 4px 16px;
+  }
+  .container:has(#fileList:not([hidden]), #settings:not([hidden]), #welcome:not([hidden])) #keyword {
+    border-radius: 30px;
+    padding: 4px 16px;
   }
   .theme {
     background-color: #333;
