@@ -64,6 +64,13 @@ function translate(wordsCode) {
   return (Languages[language] || Languages.en)[wordsCode] || false;
 }
 
+const WINDOW_WIDTH_RATIO = 0.45;
+
+// The preview panel adds another 45% of the screen next to the main panel.
+function windowWidth(workArea, previewVisible) {
+  return Math.round(workArea.width * WINDOW_WIDTH_RATIO * (previewVisible ? 2 : 1));
+}
+
 const createWindow = () => {
   const show = !startHidden;
   startHidden = false;
@@ -71,11 +78,9 @@ const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     show,
-    width: 800,
+    width: windowWidth(screen.getPrimaryDisplay().workArea, false),
     height: 100,
     center: true,
-    minWidth: 800,
-    maxWidth: 800,
     resizeble: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -369,7 +374,6 @@ ipcMain.on('resize-to-content', (event, height) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win || !Number.isFinite(height)) return;
   const { workArea } = screen.getDisplayMatching(win.getBounds());
-  const {width, x} = win.getBounds();
   const startHeight = win.getContentSize()[1];
   const target = Math.max(60, Math.min(Math.ceil(height), workArea.height));
   clearInterval(resizeTimer);
@@ -382,10 +386,30 @@ ipcMain.on('resize-to-content', (event, height) => {
     const t = Math.min(1, (Date.now() - startTime) / DURATION_MS);
     const eased = 1 - (1 - t) ** 4;
     const h = Math.round(startHeight + (target - startHeight) * eased);
+    // Read x/width each tick, the preview panel may change them mid-animation.
+    const { x, width } = win.getBounds();
     // Keep the window vertically centered on the display as it grows.
     win.setBounds({ x, y: Math.round(workArea.y + (workArea.height - h) / 2), width, height: h });
     if (t === 1) clearInterval(resizeTimer);
   }, 16);
+});
+
+ipcMain.on('preview:set-visible', (event, visible) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return;
+  const { workArea } = screen.getDisplayMatching(win.getBounds());
+  const { y, height } = win.getBounds();
+  const width = windowWidth(workArea, visible === true);
+  win.setBounds({ x: Math.round(workArea.x + (workArea.width - width) / 2), y, width, height });
+});
+
+ipcMain.handle('file:preview', (_event, filePath) => {
+  if (!indexWorker || typeof filePath !== 'string') return null;
+  const requestId = randomUUID();
+  return new Promise((resolve, reject) => {
+    pendingRequests.set(requestId, { resolve, reject });
+    indexWorker.postMessage({ type: 'file-content', requestId, filePath });
+  });
 });
 
 ipcMain.on('hide-to-tray', (event) => {
@@ -724,6 +748,15 @@ function handleWorkerMessage(message) {
     pendingRequests.delete(message.requestId);
     if (message.error) pending.reject(new Error(message.error));
     else pending.resolve(message.thumbnail);
+    return;
+  }
+
+  if (message.type === 'file-content-response') {
+    const pending = pendingRequests.get(message.requestId);
+    if (!pending) return;
+    pendingRequests.delete(message.requestId);
+    if (message.error) pending.reject(new Error(message.error));
+    else pending.resolve(message.preview);
     return;
   }
 

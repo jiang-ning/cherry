@@ -122,6 +122,44 @@ async function readNestedText(name, bytes, context) {
   }
 }
 
+const PREVIEW_MAX_BYTES = 20 * MB;
+const PREVIEW_HTML_TYPES = new Map([
+  ...[...DOCUMENT_EXTENSIONS].map((extension) => [extension, extension.slice(1)]),
+  ['.csv', 'csv'], ['.md', 'md'], ['.markdown', 'md'], ['.html', 'html'], ['.htm', 'html']
+]);
+const PREVIEW_IMAGE_TYPES = new Map([['.png', 'image/png'], ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg']]);
+// The preview iframe is sandboxed without scripts; this also keeps it from loading anything remote.
+const PREVIEW_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:">`;
+
+// Returns { html } or { image } (a data: URL) for a formatted preview, or null when only text can be shown.
+async function renderPreview(filePath) {
+  const extension = path.extname(filePath).toLowerCase();
+  const htmlType = PREVIEW_HTML_TYPES.get(extension);
+  const imageType = PREVIEW_IMAGE_TYPES.get(extension);
+  if (!htmlType && !imageType) return null;
+  const { size } = await fs.stat(filePath);
+  if (!size || size > PREVIEW_MAX_BYTES) return null;
+
+  if (imageType) {
+    return { image: `data:${imageType};base64,${(await fs.readFile(filePath)).toString('base64')}` };
+  }
+  officeParser ??= require('officeparser');
+  const document = await officeParser.parseOffice(filePath, {
+    fileType: htmlType,
+    extractAttachments: true,
+    ocr: false,
+    allowRemoteAssets: false
+  });
+  const { value } = await document.to('html', {
+    htmlConfig: {
+      standalone: { scripts: false },
+      chartJsSrc: '',
+      injections: { headStart: PREVIEW_CSP }
+    }
+  });
+  return value ? { html: String(value) } : null;
+}
+
 // Returns { text, layout }, or null when the file is empty, too large, binary, or unsupported.
 // `layout` holds the page positions of OCR'd words (see ocr.js), with `offset` added for where
 // the OCR text starts in `text`; it is null for files that weren't OCR'd.
@@ -262,5 +300,6 @@ module.exports = {
   isSupportedFile,
   isIgnoredDirectory,
   parseBooleanQuery,
-  parseSearchQuery
+  parseSearchQuery,
+  renderPreview
 };

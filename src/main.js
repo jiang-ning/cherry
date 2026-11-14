@@ -228,6 +228,10 @@ function renderFile(file) {
   preview.append(highlightedPreview(file.preview, file.highlights));
 
   item.append(header, location);
+  item.addEventListener('click', (event) => {
+    if (event.target.closest('.open-file, .open-folder')) return;
+    showPreview(file, item);
+  });
   if (file.ocrMatch) {
     thumbnailLoaders.set(item, () => loadOcrThumbnail(item, file, preview));
     thumbnailObserver.observe(item);
@@ -274,6 +278,7 @@ async function runSearch() {
   const keyword = keywordInput.value.trim();
   if (!keyword) {
     currentSearchId += 1;
+    hidePreview();
     fileList.hidden = true;
     fileList.classList.remove('reveal');
     return;
@@ -295,6 +300,7 @@ async function runSearch() {
 
 // Swap content in one step; the previous list stays visible until then, so the window never collapses between searches.
 function showResults(items, typeTags = null) {
+  hidePreview();
   fileList.replaceChildren(...(typeTags ? [typeTags] : []), ...items);
   if (!items.length) {
     fileList.hidden = true;
@@ -305,6 +311,75 @@ function showResults(items, typeTags = null) {
     fileList.hidden = false;
     setTimeout(() => fileList.classList.remove('reveal'), 250);
   }
+}
+
+const previewPanel = document.getElementById('previewPanel');
+let previewRequestId = 0;
+
+async function showPreview(file, item) {
+  const requestId = ++previewRequestId;
+  fileList.querySelector('.file-item.selected')?.classList.remove('selected');
+  item.classList.add('selected');
+
+  const header = document.createElement('div');
+  header.className = 'preview-header';
+  const title = document.createElement('span');
+  title.className = 'preview-title';
+  title.textContent = file.name;
+  title.title = file.path;
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'preview-close';
+  closeButton.textContent = '\u00d7';
+  closeButton.addEventListener('click', hidePreview);
+  header.append(title, closeButton);
+
+  const body = document.createElement('pre');
+  body.className = 'preview-content';
+  body.textContent = translate('__loading__') || 'Loading...';
+  previewPanel.replaceChildren(header, body);
+
+  if (previewPanel.hidden) {
+    window.electronAPI?.setPreviewVisible(true);
+    previewPanel.hidden = false;
+  }
+
+  let preview = null;
+  try {
+    preview = await window.electronAPI?.getFilePreview(file.path);
+  } catch {}
+  if (requestId !== previewRequestId) return;
+  if (preview?.html) {
+    const frame = document.createElement('iframe');
+    frame.className = 'preview-frame';
+    // No allow-scripts / allow-same-origin: document markup can't run code or reach the app.
+    frame.sandbox = '';
+    frame.srcdoc = preview.html;
+    body.replaceWith(frame);
+    return;
+  }
+  if (preview?.image) {
+    const image = document.createElement('img');
+    image.className = 'preview-image';
+    image.alt = file.name;
+    image.src = preview.image;
+    body.replaceWith(image);
+    return;
+  }
+  if (!preview?.content) {
+    body.textContent = translate('__no_preview__') || 'No preview available.';
+    return;
+  }
+  body.textContent = preview.truncated ? `${preview.content}\n…` : preview.content;
+}
+
+function hidePreview() {
+  previewRequestId += 1;
+  fileList.querySelector('.file-item.selected')?.classList.remove('selected');
+  if (previewPanel.hidden) return;
+  previewPanel.hidden = true;
+  previewPanel.replaceChildren();
+  window.electronAPI?.setPreviewVisible(false);
 }
 
 const settingsPanel = document.getElementById('settings');
@@ -1166,6 +1241,7 @@ brandMark.addEventListener('click', () => {
   }
   welcomePinned = false;
   settingsPanel.hidden = !settingsPanel.hidden;
+  if (!settingsPanel.hidden) hidePreview();
   fileList.hidden = !settingsPanel.hidden || fileList.childElementCount === 0;
   updateWelcome();
   if (!settingsPanel.hidden) {
