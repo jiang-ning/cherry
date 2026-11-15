@@ -233,7 +233,7 @@ button.primary:hover {
   flex: 0 0 var(--main-width);
 }
 
-/* Lay the content out at its final width, so the opening window reveals it instead of squeezing it. */
+/* Lay the content out at its final width, so the opening card reveals it instead of squeezing it. */
 .container.preview-anchored #previewPanel > * {
   min-width: calc(var(--main-width) - 32px);
 }

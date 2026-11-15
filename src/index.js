@@ -394,43 +394,17 @@ ipcMain.on('resize-to-content', (event, height) => {
   }, 16);
 });
 
-let previewTimer;
-let finishPreviewAnimation = null;
-const PREVIEW_ANIMATION_MS = 260;
-
-// Resolves once the window has finished growing or shrinking, so the renderer can hide the panel after.
+// Resizes in one step and returns the new width; the renderer animates the card, since
+// resizing a transparent window every frame makes it flash on Windows.
 ipcMain.handle('preview:set-visible', (event, visible) => {
   const win = BrowserWindow.fromWebContents(event.sender);
-  if (!win) return;
+  if (!win) return 0;
   const { workArea } = screen.getDisplayMatching(win.getBounds());
-  const start = win.getBounds();
   const width = windowWidth(workArea, visible === true);
   const x = Math.round(workArea.x + (workArea.width - width) / 2);
-  clearInterval(previewTimer);
-  finishPreviewAnimation?.();
-  return new Promise((resolve) => {
-    finishPreviewAnimation = resolve;
-    const startTime = Date.now();
-    previewTimer = setInterval(() => {
-      const t = win.isDestroyed() ? 1 : Math.min(1, (Date.now() - startTime) / PREVIEW_ANIMATION_MS);
-      if (!win.isDestroyed()) {
-        const eased = 1 - (1 - t) ** 3;
-        // Read y/height each tick, resize-to-content may change them mid-animation.
-        const { y, height } = win.getBounds();
-        win.setBounds({
-          x: Math.round(start.x + (x - start.x) * eased),
-          y,
-          width: Math.round(start.width + (width - start.width) * eased),
-          height
-        });
-      }
-      if (t === 1) {
-        clearInterval(previewTimer);
-        finishPreviewAnimation = null;
-        resolve();
-      }
-    }, 16);
-  });
+  const { y, height } = win.getBounds();
+  win.setBounds({ x, y, width, height });
+  return width;
 });
 
 ipcMain.handle('file:preview', (_event, filePath) => {

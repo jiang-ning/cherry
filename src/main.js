@@ -318,6 +318,61 @@ const mainPanel = document.getElementById('mainPanel');
 const container = document.querySelector('.container');
 let previewRequestId = 0;
 let previewOpen = false;
+const PREVIEW_ANIMATION_MS = 260;
+let previewAnimation = 0;
+let collapsedCardWidth = 0;
+let cardGutter = 0;
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function windowResized(width) {
+  if (Math.abs(window.innerWidth - width) <= 1) return Promise.resolve();
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', done);
+      resolve();
+    };
+    const timer = setTimeout(done, 200);
+    window.addEventListener('resize', done);
+  });
+}
+
+function releaseCard() {
+  for (const property of ['width', 'margin-inline', 'overflow', 'transition']) {
+    container.style.removeProperty(property);
+  }
+}
+
+// The window resizes once and the card animates in CSS; resolves false if superseded.
+async function animatePreview(visible) {
+  const id = ++previewAnimation;
+  // Read before touching the transition, cancelling it would snap to the end width.
+  const current = container.getBoundingClientRect().width;
+  if (!container.style.width) {
+    cardGutter = window.innerWidth - current;
+    if (visible) collapsedCardWidth = current;
+  }
+  container.style.transition = 'none';
+  container.style.width = `${current}px`;
+  container.style.marginInline = 'auto';
+  container.style.overflow = 'hidden';
+  if (visible) {
+    await windowResized(await window.electronAPI.setPreviewVisible(true));
+    if (id !== previewAnimation) return false;
+  }
+  container.getBoundingClientRect();
+  container.style.transition = `width ${PREVIEW_ANIMATION_MS}ms cubic-bezier(0.33, 1, 0.68, 1)`;
+  container.style.width = `${visible ? window.innerWidth - cardGutter : collapsedCardWidth}px`;
+  await delay(PREVIEW_ANIMATION_MS);
+  if (id !== previewAnimation) return false;
+  if (visible) {
+    releaseCard();
+    return true;
+  }
+  await windowResized(await window.electronAPI.setPreviewVisible(false));
+  return id === previewAnimation;
+}
 
 // The words the search matched, taken from the highlighted parts of the result snippet.
 function matchedTerms(file) {
@@ -393,7 +448,7 @@ async function showPreview(file, item) {
       container.classList.add('preview-anchored');
     }
     previewPanel.hidden = false;
-    window.electronAPI?.setPreviewVisible(true);
+    if (window.electronAPI) animatePreview(true);
   }
 
   let preview = null;
@@ -443,12 +498,13 @@ async function hidePreview() {
   fileList.querySelector('.file-item.selected')?.classList.remove('selected');
   if (!previewOpen) return;
   previewOpen = false;
-  await window.electronAPI?.setPreviewVisible(false);
-  // Reopened while the window was shrinking.
+  // False when reopened while the card was shrinking.
+  if (window.electronAPI && !(await animatePreview(false))) return;
   if (previewOpen) return;
   previewPanel.hidden = true;
   previewPanel.replaceChildren();
   container.classList.remove('preview-anchored');
+  releaseCard();
 }
 
 const settingsPanel = document.getElementById('settings');
