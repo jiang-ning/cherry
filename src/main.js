@@ -318,61 +318,18 @@ const mainPanel = document.getElementById('mainPanel');
 const container = document.querySelector('.container');
 let previewRequestId = 0;
 let previewOpen = false;
+// Matches the .container width transition in index.css.
 const PREVIEW_ANIMATION_MS = 260;
 let previewAnimation = 0;
-let collapsedCardWidth = 0;
-let cardGutter = 0;
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function windowResized(width) {
-  if (Math.abs(window.innerWidth - width) <= 1) return Promise.resolve();
-  return new Promise((resolve) => {
-    const done = () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', done);
-      resolve();
-    };
-    const timer = setTimeout(done, 200);
-    window.addEventListener('resize', done);
-  });
-}
-
-function releaseCard() {
-  for (const property of ['width', 'margin-inline', 'overflow', 'transition']) {
-    container.style.removeProperty(property);
-  }
-}
-
-// The window resizes once and the card animates in CSS; resolves false if superseded.
-async function animatePreview(visible) {
-  const id = ++previewAnimation;
-  // Read before touching the transition, cancelling it would snap to the end width.
-  const current = container.getBoundingClientRect().width;
-  if (!container.style.width) {
-    cardGutter = window.innerWidth - current;
-    if (visible) collapsedCardWidth = current;
-  }
-  container.style.transition = 'none';
-  container.style.width = `${current}px`;
-  container.style.marginInline = 'auto';
-  container.style.overflow = 'hidden';
-  if (visible) {
-    await windowResized(await window.electronAPI.setPreviewVisible(true));
-    if (id !== previewAnimation) return false;
-  }
-  container.getBoundingClientRect();
-  container.style.transition = `width ${PREVIEW_ANIMATION_MS}ms cubic-bezier(0.33, 1, 0.68, 1)`;
-  container.style.width = `${visible ? window.innerWidth - cardGutter : collapsedCardWidth}px`;
-  await delay(PREVIEW_ANIMATION_MS);
-  if (id !== previewAnimation) return false;
-  if (visible) {
-    releaseCard();
-    return true;
-  }
-  await windowResized(await window.electronAPI.setPreviewVisible(false));
-  return id === previewAnimation;
-}
+// The window spans the preview's width, so clicks beside the card go to whatever is behind it.
+let ignoringMouse = null;
+window.addEventListener('mousemove', (event) => {
+  const ignore = !container.contains(event.target);
+  if (ignore === ignoringMouse) return;
+  ignoringMouse = ignore;
+  window.electronAPI?.setIgnoredMouseEvents(ignore);
+});
 
 // The words the search matched, taken from the highlighted parts of the result snippet.
 function matchedTerms(file) {
@@ -442,13 +399,14 @@ async function showPreview(file, item) {
 
   if (!previewOpen) {
     previewOpen = true;
-    if (window.electronAPI && previewPanel.hidden) {
-      // Pin the main panel's width so the growing window only widens the preview, left to right.
+    previewAnimation += 1;
+    if (previewPanel.hidden) {
+      // Pin the main panel's width so the widening card only reveals the preview.
       container.style.setProperty('--main-width', `${mainPanel.offsetWidth}px`);
       container.classList.add('preview-anchored');
     }
+    container.classList.remove('preview-closing');
     previewPanel.hidden = false;
-    if (window.electronAPI) animatePreview(true);
   }
 
   let preview = null;
@@ -498,13 +456,14 @@ async function hidePreview() {
   fileList.querySelector('.file-item.selected')?.classList.remove('selected');
   if (!previewOpen) return;
   previewOpen = false;
-  // False when reopened while the card was shrinking.
-  if (window.electronAPI && !(await animatePreview(false))) return;
-  if (previewOpen) return;
+  const id = ++previewAnimation;
+  container.classList.add('preview-closing');
+  await new Promise((resolve) => setTimeout(resolve, PREVIEW_ANIMATION_MS));
+  // Reopened while the card was shrinking.
+  if (id !== previewAnimation) return;
   previewPanel.hidden = true;
   previewPanel.replaceChildren();
-  container.classList.remove('preview-anchored');
-  releaseCard();
+  container.classList.remove('preview-anchored', 'preview-closing');
 }
 
 const settingsPanel = document.getElementById('settings');

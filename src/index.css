@@ -82,8 +82,10 @@ button.primary:hover {
   border: 1px solid #ccc;
   border-radius: 30px;
   box-shadow: 0 0 16px #00000033;
-  margin: 20px;
+  margin: 20px auto;
   padding: 10px 0;
+  width: calc(50% - 40px);
+  transition: width 260ms cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 #keyword {
@@ -207,6 +209,12 @@ button.primary:hover {
 
 .container:has(#previewPanel:not([hidden])) {
   display: flex;
+  overflow: hidden;
+  width: calc(100% - 40px);
+}
+
+.container.preview-closing:has(#previewPanel) {
+  width: calc(50% - 40px);
 }
 
 .container:has(#previewPanel:not([hidden])) #mainPanel {

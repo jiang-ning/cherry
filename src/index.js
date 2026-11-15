@@ -64,12 +64,9 @@ function translate(wordsCode) {
   return (Languages[language] || Languages.en)[wordsCode] || false;
 }
 
-const WINDOW_WIDTH_RATIO = 0.5;
-
-// The preview panel adds another 45% of the screen next to the main panel.
-function windowWidth(workArea, previewVisible) {
-  return Math.round(workArea.width * WINDOW_WIDTH_RATIO * (previewVisible ? 2 : 1));
-}
+// Wide enough for the preview panel up front; resizing a transparent window makes it flash on Windows.
+// The card itself is half of it until the preview opens (see .container in index.css).
+const WINDOW_WIDTH_RATIO = 1;
 
 const createWindow = () => {
   const show = !startHidden;
@@ -78,7 +75,7 @@ const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     show,
-    width: windowWidth(screen.getPrimaryDisplay().workArea, false),
+    width: Math.round(screen.getPrimaryDisplay().workArea.width * WINDOW_WIDTH_RATIO),
     height: 100,
     center: true,
     resizable: false,
@@ -386,7 +383,6 @@ ipcMain.on('resize-to-content', (event, height) => {
     const t = Math.min(1, (Date.now() - startTime) / DURATION_MS);
     const eased = 1 - (1 - t) ** 4;
     const h = Math.round(startHeight + (target - startHeight) * eased);
-    // Read x/width each tick, the preview panel may change them mid-animation.
     const { x, width } = win.getBounds();
     // Keep the window vertically centered on the display as it grows.
     win.setBounds({ x, y: Math.round(workArea.y + (workArea.height - h) / 2), width, height: h });
@@ -394,17 +390,8 @@ ipcMain.on('resize-to-content', (event, height) => {
   }, 16);
 });
 
-// Resizes in one step and returns the new width; the renderer animates the card, since
-// resizing a transparent window every frame makes it flash on Windows.
-ipcMain.handle('preview:set-visible', (event, visible) => {
-  const win = BrowserWindow.fromWebContents(event.sender);
-  if (!win) return 0;
-  const { workArea } = screen.getDisplayMatching(win.getBounds());
-  const width = windowWidth(workArea, visible === true);
-  const x = Math.round(workArea.x + (workArea.width - width) / 2);
-  const { y, height } = win.getBounds();
-  win.setBounds({ x, y, width, height });
-  return width;
+ipcMain.on('set-ignore-mouse-events', (event, ignore) => {
+  BrowserWindow.fromWebContents(event.sender)?.setIgnoreMouseEvents(ignore === true, { forward: true });
 });
 
 ipcMain.handle('file:preview', (_event, filePath) => {
