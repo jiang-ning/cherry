@@ -82,10 +82,8 @@ button.primary:hover {
   border: 1px solid #ccc;
   border-radius: 30px;
   box-shadow: 0 0 16px #00000033;
-  margin: 20px auto;
+  margin: 20px;
   padding: 10px 0;
-  width: calc(50% - 40px);
-  transition: width 260ms cubic-bezier(0.33, 1, 0.68, 1);
 }
 
 #keyword {
@@ -209,12 +207,6 @@ button.primary:hover {
 
 .container:has(#previewPanel:not([hidden])) {
   display: flex;
-  overflow: hidden;
-  width: calc(100% - 40px);
-}
-
-.container.preview-closing:has(#previewPanel) {
-  width: calc(50% - 40px);
 }
 
 .container:has(#previewPanel:not([hidden])) #mainPanel {
@@ -235,15 +227,6 @@ button.primary:hover {
 
 #previewPanel[hidden] {
   display: none;
-}
-
-.container.preview-anchored:has(#previewPanel:not([hidden])) #mainPanel {
-  flex: 0 0 var(--main-width);
-}
-
-/* Lay the content out at its final width, so the opening card reveals it instead of squeezing it. */
-.container.preview-anchored #previewPanel > * {
-  min-width: calc(var(--main-width) - 32px);
 }
 
 .preview-header {

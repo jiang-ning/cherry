@@ -314,22 +314,8 @@ function showResults(items, typeTags = null) {
 }
 
 const previewPanel = document.getElementById('previewPanel');
-const mainPanel = document.getElementById('mainPanel');
-const container = document.querySelector('.container');
 let previewRequestId = 0;
 let previewOpen = false;
-// Matches the .container width transition in index.css.
-const PREVIEW_ANIMATION_MS = 260;
-let previewAnimation = 0;
-
-// The window spans the preview's width, so clicks beside the card go to whatever is behind it.
-let ignoringMouse = null;
-window.addEventListener('mousemove', (event) => {
-  const ignore = !container.contains(event.target);
-  if (ignore === ignoringMouse) return;
-  ignoringMouse = ignore;
-  window.electronAPI?.setIgnoredMouseEvents(ignore);
-});
 
 // The words the search matched, taken from the highlighted parts of the result snippet.
 function matchedTerms(file) {
@@ -399,14 +385,8 @@ async function showPreview(file, item) {
 
   if (!previewOpen) {
     previewOpen = true;
-    previewAnimation += 1;
-    if (previewPanel.hidden) {
-      // Pin the main panel's width so the widening card only reveals the preview.
-      container.style.setProperty('--main-width', `${mainPanel.offsetWidth}px`);
-      container.classList.add('preview-anchored');
-    }
-    container.classList.remove('preview-closing');
     previewPanel.hidden = false;
+    window.electronAPI?.setPreviewVisible(true);
   }
 
   let preview = null;
@@ -451,19 +431,14 @@ async function showPreview(file, item) {
   }
 }
 
-async function hidePreview() {
+function hidePreview() {
   previewRequestId += 1;
   fileList.querySelector('.file-item.selected')?.classList.remove('selected');
   if (!previewOpen) return;
   previewOpen = false;
-  const id = ++previewAnimation;
-  container.classList.add('preview-closing');
-  await new Promise((resolve) => setTimeout(resolve, PREVIEW_ANIMATION_MS));
-  // Reopened while the card was shrinking.
-  if (id !== previewAnimation) return;
   previewPanel.hidden = true;
   previewPanel.replaceChildren();
-  container.classList.remove('preview-anchored', 'preview-closing');
+  window.electronAPI?.setPreviewVisible(false);
 }
 
 const settingsPanel = document.getElementById('settings');
