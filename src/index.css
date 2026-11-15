@@ -221,7 +221,6 @@ button.primary:hover {
   flex-direction: column;
   max-height: 560px;
   padding: 0 16px 16px;
-  border-left: 1px solid #ccc;
   -webkit-app-region: no-drag;
 }
 
@@ -233,7 +232,7 @@ button.primary:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 0;
+  padding: 4px 0 8px;
 }
 
 .preview-title {
@@ -292,6 +291,8 @@ button.primary:hover {
 
 .file-item.selected {
   background-color: #ffda6a33;
+  box-shadow: inset 0 0 0px 1px #4a263833;
+  border-radius: 10px;
 }
 
 #diskUsageRatioChart {
@@ -619,7 +620,7 @@ button.primary:hover {
 }
 
 .file-item {
-  padding: 10px 0;
+  padding: 10px;
 }
 
 .file-item[hidden] {
@@ -634,7 +635,7 @@ button.primary:hover {
   align-items: center;
   gap: 4px;
   margin: -10px 0 0;
-  padding: 10px 0 8px;
+  padding: 10px 0;
   background-color: #fff;
 }
 

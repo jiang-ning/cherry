@@ -64,7 +64,7 @@ function translate(wordsCode) {
   return (Languages[language] || Languages.en)[wordsCode] || false;
 }
 
-const WINDOW_WIDTH_RATIO = 0.45;
+const WINDOW_WIDTH_RATIO = 0.5;
 
 // The preview panel adds another 45% of the screen next to the main panel.
 function windowWidth(workArea, previewVisible) {
