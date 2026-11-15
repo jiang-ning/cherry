@@ -221,11 +221,21 @@ button.primary:hover {
   flex-direction: column;
   max-height: 560px;
   padding: 0 16px 16px;
+  overflow: hidden;
   -webkit-app-region: no-drag;
 }
 
 #previewPanel[hidden] {
   display: none;
+}
+
+.container.preview-anchored:has(#previewPanel:not([hidden])) #mainPanel {
+  flex: 0 0 var(--main-width);
+}
+
+/* Lay the content out at its final width, so the opening window reveals it instead of squeezing it. */
+.container.preview-anchored #previewPanel > * {
+  min-width: calc(var(--main-width) - 32px);
 }
 
 .preview-header {
@@ -267,6 +277,14 @@ button.primary:hover {
   word-break: break-word;
   -webkit-user-select: text;
   user-select: text;
+}
+
+.preview-content.raw {
+  font-family: Consolas, 'Cascadia Mono', Menlo, monospace;
+  font-size: 12px;
+  tab-size: 4;
+  word-break: normal;
+  overflow-wrap: anywhere;
 }
 
 .preview-frame {
@@ -332,6 +350,9 @@ button.primary:hover {
 .indexSelectionRow > .indexSelections {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .indexSelections label {
@@ -518,9 +539,14 @@ button.primary:hover {
 .welcome-shortcutKeys {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 24px;
+  column-gap: 24px;
+}
+
+.welcome-shortcutKeys .shortcutKeys {
+  margin: 8px 0;
 }
 
 .welcome-introForSearch {
@@ -747,7 +773,8 @@ button.primary:hover {
   color: #666;
 }
 
-.file-preview mark {
+.file-preview mark,
+.preview-content mark {
   background: #ffe28a;
   border-radius: 2px;
 }

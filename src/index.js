@@ -394,13 +394,43 @@ ipcMain.on('resize-to-content', (event, height) => {
   }, 16);
 });
 
-ipcMain.on('preview:set-visible', (event, visible) => {
+let previewTimer;
+let finishPreviewAnimation = null;
+const PREVIEW_ANIMATION_MS = 260;
+
+// Resolves once the window has finished growing or shrinking, so the renderer can hide the panel after.
+ipcMain.handle('preview:set-visible', (event, visible) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return;
   const { workArea } = screen.getDisplayMatching(win.getBounds());
-  const { y, height } = win.getBounds();
+  const start = win.getBounds();
   const width = windowWidth(workArea, visible === true);
-  win.setBounds({ x: Math.round(workArea.x + (workArea.width - width) / 2), y, width, height });
+  const x = Math.round(workArea.x + (workArea.width - width) / 2);
+  clearInterval(previewTimer);
+  finishPreviewAnimation?.();
+  return new Promise((resolve) => {
+    finishPreviewAnimation = resolve;
+    const startTime = Date.now();
+    previewTimer = setInterval(() => {
+      const t = win.isDestroyed() ? 1 : Math.min(1, (Date.now() - startTime) / PREVIEW_ANIMATION_MS);
+      if (!win.isDestroyed()) {
+        const eased = 1 - (1 - t) ** 3;
+        // Read y/height each tick, resize-to-content may change them mid-animation.
+        const { y, height } = win.getBounds();
+        win.setBounds({
+          x: Math.round(start.x + (x - start.x) * eased),
+          y,
+          width: Math.round(start.width + (width - start.width) * eased),
+          height
+        });
+      }
+      if (t === 1) {
+        clearInterval(previewTimer);
+        finishPreviewAnimation = null;
+        resolve();
+      }
+    }, 16);
+  });
 });
 
 ipcMain.handle('file:preview', (_event, filePath) => {
