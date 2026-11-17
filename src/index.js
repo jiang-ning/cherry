@@ -71,16 +71,43 @@ function windowWidth(workArea, previewVisible) {
   return Math.round(workArea.width * WINDOW_WIDTH_RATIO * (previewVisible ? 2 : 1));
 }
 
+let previewVisible = false;
+
+// Open on the display the user is working on (the one under the mouse cursor), not always the primary one.
+function cursorWorkArea() {
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+}
+
+function centerOnCursorDisplay(win) {
+  const workArea = cursorWorkArea();
+  const width = windowWidth(workArea, previewVisible);
+  const height = Math.min(win.getBounds().height, workArea.height);
+  const bounds = {
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: Math.round(workArea.y + (workArea.height - height) / 2),
+    width,
+    height
+  };
+  win.setBounds(bounds);
+  // Second call fixes the size when moving between displays with different DPI scaling (Windows).
+  win.setBounds(bounds);
+}
+
 const createWindow = () => {
   const show = !startHidden;
   startHidden = false;
 
+  const workArea = cursorWorkArea();
+  const width = windowWidth(workArea, false);
+  const height = 100;
+
   // Create the browser window.
   mainWindow = new BrowserWindow({
     show,
-    width: windowWidth(screen.getPrimaryDisplay().workArea, false),
-    height: 100,
-    center: true,
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: Math.round(workArea.y + (workArea.height - height) / 2),
+    width,
+    height,
     resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -123,6 +150,7 @@ function showMainWindow() {
     return;
   }
   if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) centerOnCursorDisplay(mainWindow);
   mainWindow.show();
   mainWindow.focus();
 }
@@ -397,8 +425,9 @@ ipcMain.on('resize-to-content', (event, height) => {
 ipcMain.on('preview:set-visible', (event, visible) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return;
+  previewVisible = visible === true;
   const { workArea } = screen.getDisplayMatching(win.getBounds());
-  const width = windowWidth(workArea, visible === true);
+  const width = windowWidth(workArea, previewVisible);
   const x = Math.round(workArea.x + (workArea.width - width) / 2);
   const { y, height } = win.getBounds();
   win.setBounds({ x, y, width, height });

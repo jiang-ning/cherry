@@ -1,6 +1,15 @@
 # cherry
 
-A desktop app that searches the contents of files in your Documents folder for a keyword. Each match shows the filename, last modified date and time, a content preview, and the keyword highlighted. Files are read on your computer and are not uploaded.
+A desktop app that searches the contents of files in your Documents folder for a keyword. Each match shows the filename, last modified date and time, a content preview, and the keyword highlighted. Click a result to open it in a preview panel next to the results. Files are read on your computer and are not uploaded.
+
+## Preview panel
+
+Clicking a search result opens the file in a preview panel beside the results, with the matches highlighted and the first match scrolled into view. Close it with the **x** button; starting a new search also closes it.
+
+- **Word, Excel, PowerPoint, PDF, OpenDocument, RTF, CSV, Markdown and HTML** files are shown with their formatting.
+- **PNG and JPEG** images are shown as images.
+- **Text, data, config and source code** files are shown with their original line breaks and indentation.
+- **Emails, archives, TIFF images** and other files show the text that was indexed from them.
 
 ## Supported files
 
@@ -30,6 +39,7 @@ A desktop app that searches the contents of files in your Documents folder for a
 - Search reads a local SQLite index, not the files themselves, so new or changed files appear only after they are indexed. Files changed in the last 7 days are indexed first; older files are indexed only after the computer has been idle for a minute. The folder is re-checked every 10 minutes while the app is open.
 - Up to 2 million characters of text are indexed per file; matches beyond that aren't found.
 - Case-insensitive matching covers English letters fully; for other alphabets, the match count and highlight may miss differently-cased occurrences.
+- The preview panel shows only indexed files. Files over 20MB, and files that can't be rendered, show their indexed text instead, up to the first 100,000 characters. Text files show up to their first 200,000 characters. Formatted previews can't run scripts or load anything from the internet, so remote images and fonts are not shown.
 
 ## Development
 
