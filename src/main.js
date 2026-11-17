@@ -406,7 +406,7 @@ async function showPreview(file, item) {
       // Scroll only the frame's own document; scrollIntoView would also move the app window.
       if (hit) frame.contentWindow.scrollBy(0, hit.getBoundingClientRect().top - frame.contentWindow.innerHeight / 2);
     }, { once: true });
-    frame.sandbox = ''; //TODO: consider to remove it to see how html file works with word highlighting
+    frame.sandbox = '';
     frame.srcdoc = preview.html;
     body.replaceWith(frame);
     return;
