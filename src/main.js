@@ -228,6 +228,10 @@ function renderFile(file) {
   preview.append(highlightedPreview(file.preview, file.highlights));
 
   item.append(header, location);
+  item.addEventListener('click', (event) => {
+    if (event.target.closest('.open-file, .open-folder')) return;
+    showPreview(file, item);
+  });
   if (file.ocrMatch) {
     thumbnailLoaders.set(item, () => loadOcrThumbnail(item, file, preview));
     thumbnailObserver.observe(item);
@@ -274,6 +278,7 @@ async function runSearch() {
   const keyword = keywordInput.value.trim();
   if (!keyword) {
     currentSearchId += 1;
+    hidePreview();
     fileList.hidden = true;
     fileList.classList.remove('reveal');
     return;
@@ -295,6 +300,7 @@ async function runSearch() {
 
 // Swap content in one step; the previous list stays visible until then, so the window never collapses between searches.
 function showResults(items, typeTags = null) {
+  hidePreview();
   fileList.replaceChildren(...(typeTags ? [typeTags] : []), ...items);
   if (!items.length) {
     fileList.hidden = true;
@@ -305,6 +311,134 @@ function showResults(items, typeTags = null) {
     fileList.hidden = false;
     setTimeout(() => fileList.classList.remove('reveal'), 250);
   }
+}
+
+const previewPanel = document.getElementById('previewPanel');
+let previewRequestId = 0;
+let previewOpen = false;
+
+// The words the search matched, taken from the highlighted parts of the result snippet.
+function matchedTerms(file) {
+  const terms = file.highlights.map(({ start, length }) => file.preview.slice(start, start + length).toLowerCase());
+  return [...new Set(terms.filter((term) => term.trim()))];
+}
+
+// Wraps each occurrence of `terms` under `root` in a <mark> and returns the first one.
+function markTerms(root, terms) {
+  if (!root || !terms.length) return null;
+  const doc = root.ownerDocument;
+  const pattern = new RegExp(
+    terms.sort((a, b) => b.length - a.length).map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
+    'gi'
+  );
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => node.parentElement?.closest('script, style, mark')
+      ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+
+  let first = null;
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    const matches = [...text.matchAll(pattern)];
+    if (!matches.length) continue;
+    const fragment = doc.createDocumentFragment();
+    let position = 0;
+    for (const match of matches) {
+      fragment.append(text.slice(position, match.index));
+      const mark = doc.createElement('mark');
+      mark.className = 'preview-hit';
+      mark.textContent = match[0];
+      fragment.append(mark);
+      first ??= mark;
+      position = match.index + match[0].length;
+    }
+    fragment.append(text.slice(position));
+    node.replaceWith(fragment);
+  }
+  return first;
+}
+
+async function showPreview(file, item) {
+  const requestId = ++previewRequestId;
+  fileList.querySelector('.file-item.selected')?.classList.remove('selected');
+  item.classList.add('selected');
+
+  const header = document.createElement('div');
+  header.className = 'preview-header';
+  const title = document.createElement('span');
+  title.className = 'preview-title';
+  title.textContent = file.name;
+  title.title = file.path;
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'preview-close';
+  closeButton.textContent = '\u00d7';
+  closeButton.addEventListener('click', hidePreview);
+  header.append(title, closeButton);
+
+  const body = document.createElement('pre');
+  body.className = 'preview-content';
+  body.textContent = translate('__loading__') || 'Loading...';
+  previewPanel.replaceChildren(header, body);
+
+  if (!previewOpen) {
+    previewOpen = true;
+    previewPanel.hidden = false;
+    window.electronAPI?.setPreviewVisible(true);
+  }
+
+  let preview = null;
+  try {
+    preview = await window.electronAPI?.getFilePreview(file.path);
+  } catch {}
+  if (requestId !== previewRequestId) return;
+  const terms = matchedTerms(file);
+  if (preview?.html) {
+    const frame = document.createElement('iframe');
+    frame.className = 'preview-frame';
+    // No allow-scripts: the markup can't run code; same-origin only lets this page mark the hits.
+    frame.sandbox = 'allow-same-origin';
+    frame.addEventListener('load', () => {
+      if (requestId !== previewRequestId) return;
+      const hit = markTerms(frame.contentDocument?.body, terms);
+      // Scroll only the frame's own document; scrollIntoView would also move the app window.
+      if (hit) frame.contentWindow.scrollBy(0, hit.getBoundingClientRect().top - frame.contentWindow.innerHeight / 2);
+    }, { once: true });
+    frame.sandbox = '';
+    frame.srcdoc = preview.html;
+    body.replaceWith(frame);
+    return;
+  }
+  if (preview?.image) {
+    const image = document.createElement('img');
+    image.className = 'preview-image';
+    image.alt = file.name;
+    image.src = preview.image;
+    body.replaceWith(image);
+    return;
+  }
+  if (!preview?.content) {
+    body.textContent = translate('__no_preview__') || 'No preview available.';
+    return;
+  }
+  body.classList.toggle('raw', preview.raw === true);
+  body.textContent = preview.truncated ? `${preview.content}\n…` : preview.content;
+  const hit = markTerms(body, terms);
+  if (hit) {
+    body.scrollTop += hit.getBoundingClientRect().top - body.getBoundingClientRect().top - body.clientHeight / 2;
+  }
+}
+
+function hidePreview() {
+  previewRequestId += 1;
+  fileList.querySelector('.file-item.selected')?.classList.remove('selected');
+  if (!previewOpen) return;
+  previewOpen = false;
+  previewPanel.hidden = true;
+  previewPanel.replaceChildren();
+  window.electronAPI?.setPreviewVisible(false);
 }
 
 const settingsPanel = document.getElementById('settings');
@@ -1166,6 +1300,7 @@ brandMark.addEventListener('click', () => {
   }
   welcomePinned = false;
   settingsPanel.hidden = !settingsPanel.hidden;
+  if (!settingsPanel.hidden) hidePreview();
   fileList.hidden = !settingsPanel.hidden || fileList.childElementCount === 0;
   updateWelcome();
   if (!settingsPanel.hidden) {

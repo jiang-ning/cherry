@@ -64,19 +64,51 @@ function translate(wordsCode) {
   return (Languages[language] || Languages.en)[wordsCode] || false;
 }
 
+const WINDOW_WIDTH_RATIO = 0.5;
+
+// The preview panel adds another 45% of the screen next to the main panel.
+function windowWidth(workArea, previewVisible) {
+  return Math.round(workArea.width * WINDOW_WIDTH_RATIO * (previewVisible ? 2 : 1));
+}
+
+let previewVisible = false;
+
+// Open on the display the user is working on (the one under the mouse cursor), not always the primary one.
+function cursorWorkArea() {
+  return screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+}
+
+function centerOnCursorDisplay(win) {
+  const workArea = cursorWorkArea();
+  const width = windowWidth(workArea, previewVisible);
+  const height = Math.min(win.getBounds().height, workArea.height);
+  const bounds = {
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: Math.round(workArea.y + (workArea.height - height) / 2),
+    width,
+    height
+  };
+  win.setBounds(bounds);
+  // Second call fixes the size when moving between displays with different DPI scaling (Windows).
+  win.setBounds(bounds);
+}
+
 const createWindow = () => {
   const show = !startHidden;
   startHidden = false;
 
+  const workArea = cursorWorkArea();
+  const width = windowWidth(workArea, false);
+  const height = 100;
+
   // Create the browser window.
   mainWindow = new BrowserWindow({
     show,
-    width: 800,
-    height: 100,
-    center: true,
-    minWidth: 800,
-    maxWidth: 800,
-    resizeble: false,
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: Math.round(workArea.y + (workArea.height - height) / 2),
+    width,
+    height,
+    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -118,6 +150,7 @@ function showMainWindow() {
     return;
   }
   if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) centerOnCursorDisplay(mainWindow);
   mainWindow.show();
   mainWindow.focus();
 }
@@ -369,7 +402,6 @@ ipcMain.on('resize-to-content', (event, height) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win || !Number.isFinite(height)) return;
   const { workArea } = screen.getDisplayMatching(win.getBounds());
-  const {width, x} = win.getBounds();
   const startHeight = win.getContentSize()[1];
   const target = Math.max(60, Math.min(Math.ceil(height), workArea.height));
   clearInterval(resizeTimer);
@@ -382,10 +414,32 @@ ipcMain.on('resize-to-content', (event, height) => {
     const t = Math.min(1, (Date.now() - startTime) / DURATION_MS);
     const eased = 1 - (1 - t) ** 4;
     const h = Math.round(startHeight + (target - startHeight) * eased);
+    // Read x/width each tick, the preview panel may change them mid-animation.
+    const { x, width } = win.getBounds();
     // Keep the window vertically centered on the display as it grows.
     win.setBounds({ x, y: Math.round(workArea.y + (workArea.height - h) / 2), width, height: h });
     if (t === 1) clearInterval(resizeTimer);
   }, 16);
+});
+
+ipcMain.on('preview:set-visible', (event, visible) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return;
+  previewVisible = visible === true;
+  const { workArea } = screen.getDisplayMatching(win.getBounds());
+  const width = windowWidth(workArea, previewVisible);
+  const x = Math.round(workArea.x + (workArea.width - width) / 2);
+  const { y, height } = win.getBounds();
+  win.setBounds({ x, y, width, height });
+});
+
+ipcMain.handle('file:preview', (_event, filePath) => {
+  if (!indexWorker || typeof filePath !== 'string') return null;
+  const requestId = randomUUID();
+  return new Promise((resolve, reject) => {
+    pendingRequests.set(requestId, { resolve, reject });
+    indexWorker.postMessage({ type: 'file-content', requestId, filePath });
+  });
 });
 
 ipcMain.on('hide-to-tray', (event) => {
@@ -724,6 +778,15 @@ function handleWorkerMessage(message) {
     pendingRequests.delete(message.requestId);
     if (message.error) pending.reject(new Error(message.error));
     else pending.resolve(message.thumbnail);
+    return;
+  }
+
+  if (message.type === 'file-content-response') {
+    const pending = pendingRequests.get(message.requestId);
+    if (!pending) return;
+    pendingRequests.delete(message.requestId);
+    if (message.error) pending.reject(new Error(message.error));
+    else pending.resolve(message.preview);
     return;
   }
 

@@ -6,6 +6,7 @@ const { similarity } = require('./semantic');
 const MAX_RESULTS = 500;
 const PREVIEW_BEFORE = 80;
 const PREVIEW_LENGTH = 240;
+const FILE_PREVIEW_MAX_CHARS = 100000;
 const MIN_TRIGRAM_QUERY_LENGTH = 3;
 // AI Mode keeps files scoring at least this, and within the spread of the best match.
 // e5 similarities bunch up: unrelated text still scores around 0.75.
@@ -132,6 +133,10 @@ class FileIndex {
       SELECT f.modified_ms AS modifiedMs, f.content, o.layout
       FROM files f JOIN ocr_layouts o ON o.file_id = f.id
       WHERE f.path = ? AND f.state = ${STATE_INDEXED}
+    `);
+    this.fileContentStatement = this.db.prepare(`
+      SELECT substr(content, 1, ${FILE_PREVIEW_MAX_CHARS}) AS content, length(content) AS textLength
+      FROM files WHERE path = ? AND state = ${STATE_INDEXED}
     `);
     this.requeueSkippedStatement = this.db.prepare(
       `UPDATE files SET state = ${STATE_PENDING} WHERE state = ${STATE_SKIPPED} AND size > @oldBytes AND size <= @newBytes`
@@ -344,6 +349,13 @@ class FileIndex {
       };
     });
     return { results, limitReached };
+  }
+
+  // Only indexed text is returned, so the preview never reads arbitrary paths from disk.
+  fileContent(filePath) {
+    const row = this.fileContentStatement.get(filePath);
+    if (!row) return null;
+    return { content: row.content, truncated: row.textLength > row.content.length };
   }
 
   // Finds the page box of the OCR'd words at content offset `start`. A match in the PDF text layer is

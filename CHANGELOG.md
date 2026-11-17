@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0]
+
+### Preview panel
+- Click a search result to open it in a preview panel next to the results. The matches are highlighted and the first one is scrolled into view. Close the panel with the x button; a new search also closes it.
+- Word, Excel, PowerPoint, PDF, OpenDocument, RTF, CSV, Markdown and HTML files are shown with their formatting, and PNG and JPEG images as images. Text and source code files keep their line breaks and indentations. Other files, such as emails, archives and TIFF images, show their indexed text.
+- Files over 20MB, and files that can't be rendered, show their indexed text instead. Formatted previews can't run scripts or load anything from the internet.
+
 ## [1.2.1]
 
 ### Window

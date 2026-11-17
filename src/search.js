@@ -122,6 +122,59 @@ async function readNestedText(name, bytes, context) {
   }
 }
 
+const PREVIEW_MAX_BYTES = 20 * MB;
+const PREVIEW_HTML_TYPES = new Map([
+  ...[...DOCUMENT_EXTENSIONS].map((extension) => [extension, extension.slice(1)]),
+  ['.csv', 'csv'], ['.md', 'md'], ['.markdown', 'md'], ['.html', 'html'], ['.htm', 'html']
+]);
+const PREVIEW_IMAGE_TYPES = new Map([['.png', 'image/png'], ['.jpg', 'image/jpeg'], ['.jpeg', 'image/jpeg']]);
+const PREVIEW_MAX_TEXT_CHARS = 200000;
+// The preview iframe is sandboxed without scripts; this also keeps it from loading anything remote.
+const PREVIEW_CSP = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:">`;
+
+// Returns { html }, { image } (a data: URL) or { content, raw } (text with its own line breaks and indents),
+// or null when only the indexed text can be shown.
+async function renderPreview(filePath) {
+  const extension = path.extname(filePath).toLowerCase();
+  const htmlType = PREVIEW_HTML_TYPES.get(extension);
+  const imageType = PREVIEW_IMAGE_TYPES.get(extension);
+  // The index collapses whitespace, so plain-text files are read again to keep their layout.
+  const isText = !htmlType && !imageType && !DOCUMENT_EXTENSIONS.has(extension) &&
+    !EMAIL_EXTENSIONS.has(extension) && !ARCHIVE_EXTENSIONS.has(extension) && !IMAGE_EXTENSIONS.has(extension);
+  if (!htmlType && !imageType && !isText) return null;
+  const { size } = await fs.stat(filePath);
+  if (!size || size > PREVIEW_MAX_BYTES) return null;
+
+  if (isText) {
+    const buffer = await fs.readFile(filePath);
+    if (buffer.includes(0)) return null;
+    const text = buffer.toString('utf8').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+    return {
+      content: text.slice(0, PREVIEW_MAX_TEXT_CHARS),
+      truncated: text.length > PREVIEW_MAX_TEXT_CHARS,
+      raw: true
+    };
+  }
+  if (imageType) {
+    return { image: `data:${imageType};base64,${(await fs.readFile(filePath)).toString('base64')}` };
+  }
+  officeParser ??= require('officeparser');
+  const document = await officeParser.parseOffice(filePath, {
+    fileType: htmlType,
+    extractAttachments: true,
+    ocr: false,
+    allowRemoteAssets: false
+  });
+  const { value } = await document.to('html', {
+    htmlConfig: {
+      standalone: { scripts: false },
+      chartJsSrc: '',
+      injections: { headStart: PREVIEW_CSP }
+    }
+  });
+  return value ? { html: String(value) } : null;
+}
+
 // Returns { text, layout }, or null when the file is empty, too large, binary, or unsupported.
 // `layout` holds the page positions of OCR'd words (see ocr.js), with `offset` added for where
 // the OCR text starts in `text`; it is null for files that weren't OCR'd.
@@ -262,5 +315,6 @@ module.exports = {
   isSupportedFile,
   isIgnoredDirectory,
   parseBooleanQuery,
-  parseSearchQuery
+  parseSearchQuery,
+  renderPreview
 };

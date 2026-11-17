@@ -5,7 +5,7 @@ const { FileIndex } = require('./file-index');
 const ocr = require('./ocr');
 const semantic = require('./semantic');
 const {
-  MB, IMAGE_EXTENSIONS, extractText, isSupportedFile, isIgnoredDirectory
+  MB, IMAGE_EXTENSIONS, extractText, isSupportedFile, isIgnoredDirectory, renderPreview
 } = require('./search');
 
 const RESCAN_INTERVAL_MS = 10 * 60 * 1000;
@@ -387,6 +387,26 @@ parentPort.on('message', (message) => {
     })().then(
       (thumbnail) => reply({ thumbnail }),
       (error) => reply({ error: String(error?.message ?? error) })
+    );
+    return;
+  }
+
+  if (message.type === 'file-content') {
+    const reply = (fields) => parentPort.postMessage({
+      type: 'file-content-response', requestId: message.requestId, ...fields
+    });
+    let preview;
+    try {
+      preview = index.fileContent(message.filePath);
+    } catch (error) {
+      reply({ error: error.message });
+      return;
+    }
+    // Only indexed files are rendered; a file that fails to render still shows its indexed text.
+    if (!preview) return reply({ preview: null });
+    renderPreview(message.filePath).then(
+      (rendered) => reply({ preview: { ...preview, ...rendered } }),
+      () => reply({ preview })
     );
     return;
   }

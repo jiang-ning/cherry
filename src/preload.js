@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   close: () => ipcRenderer.send('close'),
   hideToTray: () => ipcRenderer.send('hide-to-tray'),
   resizeToContent: (height) => ipcRenderer.send('resize-to-content', height),
+  setPreviewVisible: (visible) => ipcRenderer.send('preview:set-visible', visible),
+  getFilePreview: (filePath) => ipcRenderer.invoke('file:preview', filePath),
   search: (keyword, ai = false) => ipcRenderer.invoke('search:start', keyword, ai),
   getIndexStatus: () => ipcRenderer.invoke('index:status'),
   getIndexLocation: () => ipcRenderer.invoke('index:location'),
