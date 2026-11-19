@@ -291,6 +291,8 @@ const Languages = {
     "__ai_not_ready__": "Not ready.",
     "__ai_files_analyzed__": "files analyzed.",
     "__ai_match__": "AI match",
+    "__best_match__": "Best match",
+    "__newest__": "Newest",
     "__ai_mode_not_ready__": "AI Mode is not ready.",
   },
   "es": {

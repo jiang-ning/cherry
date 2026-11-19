@@ -123,6 +123,26 @@ function fileType(name) {
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : 'other';
 }
 
+const SORT_ORDER_KEY = 'sortOrder';
+let sortOrder = localStorage.getItem(SORT_ORDER_KEY) === 'newest' ? 'newest' : 'relevance';
+
+function renderSortSelect() {
+  const select = document.createElement('select');
+  select.className = 'sort-select';
+  for (const [value, key, failback] of [
+    ['relevance', '__bast_match__', 'Best match'],
+    ['newest', '__newest__', 'Newest']
+  ]) {
+    select.append(new Option(translate(key) || failback, value, false, value === sortOrder));
+  }
+  select.addEventListener('change', () => {
+    sortOrder = select.value;
+    localStorage.setItem(SORT_ORDER_KEY, sortOrder);
+    runSearch();
+  });
+  return select;
+}
+
 function renderTypeTags(results, items) {
   const counts = new Map();
   for (const file of results) {
@@ -187,7 +207,7 @@ function renderTypeTags(results, items) {
     for (const item of items) item.hidden = Boolean(type) && item.dataset.type !== type;
     fileList.scrollTop = 0;
   });
-  bar.append(leftArrow, track, rightArrow);
+  bar.append(leftArrow, track, rightArrow, renderSortSelect());
   return bar;
 }
 
@@ -287,7 +307,7 @@ async function runSearch() {
   const searchId = ++currentSearchId;
 
   try {
-    const { results, limitReached, status } = await window.electronAPI.search(keyword, isAiSearch());
+    const { results, limitReached, status } = await window.electronAPI.search(keyword, isAiSearch(), sortOrder);
     if (searchId !== currentSearchId) return;
     indexStatus = status;
 

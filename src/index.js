@@ -451,10 +451,11 @@ ipcMain.on('close', (event) => {
   BrowserWindow.fromWebContents(event.sender)?.close();
 });
 
-ipcMain.handle('search:start', (_event, keyword, ai = false) => {
+ipcMain.handle('search:start', (_event, keyword, ai = false, sort = 'relevance') => {
   const query = typeof keyword === 'string' ? keyword.replace(/\s+/g, ' ').trim().slice(0, 200) : '';
   if (!query) throw new Error('Enter a keyword to search.');
   if (!indexWorker) throw new Error('The search index is still starting.');
+  if (sort !== 'relevance' && sort !== 'newest') throw new Error('Invalid sort order.');
   const useAi = ai === true;
   if (useAi && !(aiEnabled && indexStatus?.ai?.state === 'ready')) {
     throw new Error(translate('__ai_mode_not_ready__') || 'AI Mode is not ready.');
@@ -463,7 +464,7 @@ ipcMain.handle('search:start', (_event, keyword, ai = false) => {
   const requestId = randomUUID();
   return new Promise((resolve, reject) => {
     pendingRequests.set(requestId, { resolve, reject });
-    indexWorker.postMessage({ type: 'search', requestId, query, caseSensitive, searchFileNames, maxResults, ai: useAi });
+    indexWorker.postMessage({ type: 'search', requestId, query, caseSensitive, searchFileNames, maxResults, ai: useAi, sort });
   });
 });
 
