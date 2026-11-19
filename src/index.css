@@ -721,6 +721,38 @@ button.primary:hover {
   margin-left: 4px;
 }
 
+.sort-select {
+  flex: none;
+  margin-left: 4px;
+  font-size: 12px;
+}
+
+.sort-select .custom-select-trigger {
+  gap: 8px;
+  height: 28px;
+  padding: 6px 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sort-select .custom-select-value {
+  display: grid;
+}
+
+.sort-select .custom-select-value > span {
+  grid-area: 1 / 1;
+}
+
+.sort-select .custom-select-value > span[hidden] {
+  display: block;
+  visibility: hidden;
+}
+
+.sort-select .custom-select-options li {
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
 /* Animate only when the list first appears, not on every keystroke. */
 #fileList.reveal .file-item {
   animation: result-in 200ms ease-out both;

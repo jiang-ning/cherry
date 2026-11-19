@@ -17,13 +17,19 @@ const STATE_PENDING = 0;
 const STATE_INDEXED = 1;
 const STATE_SKIPPED = 2;
 
+const SORT_ORDERS = {
+  newest: 'modifiedMs DESC',
+  // bm25() is lower for better matches; the LIKE path has no rank and falls back to match count.
+  relevance: 'rank, matchCount DESC, modifiedMs DESC'
+};
+
 // Wraps the FTS query so both search paths return a small preview window instead of full file text.
-const previewSelect = (innerQuery) => `
-  SELECT id, path, modifiedMs, textLength, matchCount, content, hasOcr,
+const previewSelect = (innerQuery, sort) => `
+  SELECT id, path, modifiedMs, textLength, matchCount, rank, content, hasOcr,
     max(1, position - @before) AS windowStart,
     substr(content, max(1, position - @before), length(@query) + @previewLength) AS window
   FROM (${innerQuery})
-  ORDER BY modifiedMs DESC
+  ORDER BY ${SORT_ORDERS[sort]}
 `;
 
 const DELETE_TRIGGER = `
@@ -158,18 +164,20 @@ class FileIndex {
         coalesce(sum(state = ${STATE_SKIPPED}), 0) AS skipped
       FROM files
     `);
-    this.matchStatement = this.db.prepare(previewSelect(`
-      SELECT ${matchColumns}
-      FROM files_fts JOIN files f ON f.id = files_fts.rowid
-      WHERE files_fts MATCH @match AND f.state = ${STATE_INDEXED}
-      ORDER BY f.modified_ms DESC
-    `));
-    this.likeStatement = this.db.prepare(previewSelect(`
-      SELECT ${matchColumns}
-      FROM files f
-      WHERE f.state = ${STATE_INDEXED} AND f.content LIKE @like ESCAPE '\\'
-      ORDER BY f.modified_ms DESC
-    `));
+    this.matchStatements = {};
+    this.likeStatements = {};
+    for (const sort of Object.keys(SORT_ORDERS)) {
+      this.matchStatements[sort] = this.db.prepare(previewSelect(`
+        SELECT ${matchColumns}, bm25(files_fts) AS rank
+        FROM files_fts JOIN files f ON f.id = files_fts.rowid
+        WHERE files_fts MATCH @match AND f.state = ${STATE_INDEXED}
+      `, sort));
+      this.likeStatements[sort] = this.db.prepare(previewSelect(`
+        SELECT ${matchColumns}, 0 AS rank
+        FROM files f
+        WHERE f.state = ${STATE_INDEXED} AND f.content LIKE @like ESCAPE '\\'
+      `, sort));
+    }
 
     const notEmbedded = `
       FROM files f LEFT JOIN embedded_files e ON e.file_id = f.id AND e.modified_ms = f.modified_ms
@@ -301,7 +309,7 @@ class FileIndex {
 
   // Ranks files by their best-matching chunk. Without a query vector, lists the files modified in
   // the time range. `terms` are highlighted in the previews when they appear literally.
-  searchSemantic(queryVector, from, to, terms = []) {
+  searchSemantic(queryVector, from, to, terms = [], sort = 'relevance') {
     const range = { from: from ?? 0, to: to ?? Number.MAX_SAFE_INTEGER };
     let hits;
     let limitReached;
@@ -323,6 +331,7 @@ class FileIndex {
         ...this.semanticHitStatement.get({ id: hit.id, start: hit.start + 1 }),
         start: hit.start
       }));
+      if (sort === 'newest') hits.sort((left, right) => right.modifiedMs - left.modifiedMs);
     } else {
       hits = this.dateRangeStatement.all({ ...range, limit: this.maxResults + 1 }).map((row) => ({ ...row, start: 0 }));
       limitReached = hits.length > this.maxResults;
@@ -449,14 +458,20 @@ class FileIndex {
     this.db.pragma('wal_checkpoint(TRUNCATE)');
   }
 
-  search(rawQuery, caseSensitive = false, searchFileNames = false) {
-    const content = this.searchContent(rawQuery, caseSensitive);
+  search(rawQuery, caseSensitive = false, searchFileNames = false, sort = 'relevance') {
+    const content = this.searchContent(rawQuery, caseSensitive, sort);
     if (!searchFileNames) return content;
     const names = this.searchNames(rawQuery, caseSensitive);
     if (!names.length) return content;
     const seen = new Set(content.results.map((result) => result.path));
-    const merged = [...content.results, ...names.filter((result) => !seen.has(result.path))]
-      .sort((left, right) => right.modified - left.modified);
+    const merged = [...content.results, ...names.filter((result) => !seen.has(result.path))];
+    if (sort === 'newest') {
+      merged.sort((left, right) => right.modified - left.modified);
+    } else {
+      // A file name hit ranks above content-only hits; the stable sort keeps bm25 order within each group.
+      const named = new Set(names.map((result) => result.path));
+      merged.sort((left, right) => named.has(right.path) - named.has(left.path));
+    }
     return {
       results: merged.slice(0, this.maxResults),
       limitReached: content.limitReached || merged.length > this.maxResults
@@ -520,18 +535,18 @@ class FileIndex {
     return results;
   }
 
-  searchContent(rawQuery, caseSensitive = false) {
+  searchContent(rawQuery, caseSensitive = false, sort = 'relevance') {
     const booleanQuery = parseBooleanQuery(rawQuery);
     if (booleanQuery?.invalid) return { results: [], limitReached: false };
-    if (booleanQuery) return this.searchBoolean(booleanQuery.expression, caseSensitive);
+    if (booleanQuery) return this.searchBoolean(booleanQuery.expression, caseSensitive, sort);
 
     const { query, wholeWord } = parseSearchQuery(rawQuery);
     if (!query) return { results: [], limitReached: false };
     const params = { query, before: PREVIEW_BEFORE, previewLength: PREVIEW_LENGTH };
     // Trigram MATCH needs at least 3 characters; shorter queries fall back to a LIKE scan.
     const statement = [...query].length >= MIN_TRIGRAM_QUERY_LENGTH
-      ? this.matchStatement
-      : this.likeStatement;
+      ? this.matchStatements[sort]
+      : this.likeStatements[sort];
     const searchParams = [...query].length >= MIN_TRIGRAM_QUERY_LENGTH
       ? { ...params, match: `"${query.replaceAll('"', '""')}"` }
       : { ...params, like: `%${query.replace(/[\\%_]/g, '\\$&')}%` };
@@ -572,7 +587,7 @@ class FileIndex {
     return { results, limitReached: rows.length > this.maxResults };
   }
 
-  searchBoolean(expression, caseSensitive = false) {
+  searchBoolean(expression, caseSensitive = false, sort = 'relevance') {
     const terms = [];
     const collectTerms = (node) => {
       if (node.type === 'term') {
@@ -590,16 +605,16 @@ class FileIndex {
     for (const term of terms) {
       const params = { query: term.query, before: PREVIEW_BEFORE, previewLength: PREVIEW_LENGTH };
       const statement = [...term.query].length >= MIN_TRIGRAM_QUERY_LENGTH
-        ? this.matchStatement
-        : this.likeStatement;
+        ? this.matchStatements[sort]
+        : this.likeStatements[sort];
       const searchParams = [...term.query].length >= MIN_TRIGRAM_QUERY_LENGTH
         ? { ...params, match: `"${term.query.replaceAll('"', '""')}"` }
         : { ...params, like: `%${term.query.replace(/[\\%_]/g, '\\$&')}%` };
-      const matches = new Set();
+      const matches = new Map();
       for (const row of statement.iterate(searchParams)) {
         if ((term.wholeWord || caseSensitive)
           && !findHighlights(row.content, term.query, term.wholeWord, caseSensitive).length) continue;
-        matches.add(row.path);
+        matches.set(row.path, row);
         files.set(row.path, row);
       }
       termMatches.set(term.id, matches);
@@ -630,9 +645,16 @@ class FileIndex {
     const matchedFiles = [];
     for (const [filePath, row] of files) {
       const result = evaluate(expression, filePath);
-      if (result.matched) matchedFiles.push({ row, terms: result.terms });
+      if (!result.matched) continue;
+      const termRows = result.terms.map((term) => termMatches.get(term.id).get(filePath));
+      const rank = termRows.reduce((sum, termRow) => sum + termRow.rank, 0);
+      const matchCount = termRows.reduce((sum, termRow) => sum + termRow.matchCount, 0);
+      matchedFiles.push({ row, terms: result.terms, rank, matchCount });
     }
-    matchedFiles.sort((left, right) => right.row.modifiedMs - left.row.modifiedMs);
+    matchedFiles.sort(sort === 'newest'
+      ? (left, right) => right.row.modifiedMs - left.row.modifiedMs
+      : (left, right) => left.rank - right.rank || right.matchCount - left.matchCount
+        || right.row.modifiedMs - left.row.modifiedMs);
     const results = matchedFiles.slice(0, this.maxResults).map(({ row, terms: matchedTerms }) => {
       const matches = matchedTerms.flatMap((term) => findHighlights(row.content, term.query, term.wholeWord, caseSensitive))
         .sort((left, right) => left.start - right.start);

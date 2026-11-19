@@ -105,12 +105,12 @@ async function setAiModel(modelDir) {
   postStatus(true);
 }
 
-async function searchByMeaning(query) {
+async function searchByMeaning(query, sort) {
   if (aiState !== 'ready') throw new Error('AI Mode is not ready.');
   const { topic, from, to } = semantic.parseTimeQuery(query);
   const vector = topic ? await semantic.embedQuery(topic) : null;
   const terms = topic.split(' ').filter((word) => [...word].length >= 3 && !STOP_WORDS.has(word.toLowerCase()));
-  return index.searchSemantic(vector, from, to, terms);
+  return index.searchSemantic(vector, from, to, terms, sort);
 }
 
 // Returns { directory } or { file } for entries worth visiting, otherwise null.
@@ -416,7 +416,7 @@ parentPort.on('message', (message) => {
       type: 'search-response', requestId: message.requestId, ...fields
     });
     index.maxResults = message.maxResults;
-    searchByMeaning(message.query).then(
+    searchByMeaning(message.query, message.sort).then(
       ({ results, limitReached }) => reply({ results, limitReached, status: currentStatus() }),
       (error) => reply({ error: error.message })
     );
@@ -426,7 +426,9 @@ parentPort.on('message', (message) => {
   if (message.type === 'search') {
     try {
       index.maxResults = message.maxResults;
-      const { results, limitReached } = index.search(message.query, message.caseSensitive === true, message.searchFileNames === true);
+      const { results, limitReached } = index.search(
+        message.query, message.caseSensitive === true, message.searchFileNames === true, message.sort
+      );
       parentPort.postMessage({
         type: 'search-response',
         requestId: message.requestId,

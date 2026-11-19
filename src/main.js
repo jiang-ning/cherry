@@ -123,6 +123,56 @@ function fileType(name) {
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : 'other';
 }
 
+const SORT_ORDER_KEY = 'sortOrder';
+let sortOrder = localStorage.getItem(SORT_ORDER_KEY) === 'newest' ? 'newest' : 'relevance';
+
+function renderSortSelect() {
+  const select = document.createElement('div');
+  select.className = 'custom-select sort-select';
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'custom-select-trigger';
+  const value = document.createElement('span');
+  value.className = 'custom-select-value';
+  const arrow = document.createElement('span');
+  arrow.className = 'custom-select-arrow';
+  trigger.append(value, arrow);
+  const list = document.createElement('ul');
+  list.className = 'custom-select-options';
+  for (const [order, key, fallback] of [
+    ['relevance', '__best_match__', 'Best match'],
+    ['newest', '__newest__', 'Newest']
+  ]) {
+    const item = document.createElement('li');
+    item.dataset.value = order;
+    item.textContent = translate(key) || fallback;
+    // Every label sits in the trigger so it is as wide as the longest one; only the selected shows.
+    const label = document.createElement('span');
+    label.textContent = item.textContent;
+    label.hidden = order !== sortOrder;
+    value.append(label);
+    if (order === sortOrder) item.classList.add('selected');
+    list.append(item);
+  }
+  trigger.addEventListener('click', () => select.classList.toggle('open'));
+  list.addEventListener('click', (event) => {
+    const option = event.target.closest('li');
+    if (!option) return;
+    select.classList.remove('open');
+    if (option.dataset.value === sortOrder) return;
+    sortOrder = option.dataset.value;
+    localStorage.setItem(SORT_ORDER_KEY, sortOrder);
+    runSearch();
+  });
+  select.append(trigger, list);
+  return select;
+}
+
+document.addEventListener('click', (event) => {
+  const open = fileList.querySelector('.sort-select.open');
+  if (open && !open.contains(event.target)) open.classList.remove('open');
+});
+
 function renderTypeTags(results, items) {
   const counts = new Map();
   for (const file of results) {
@@ -187,7 +237,7 @@ function renderTypeTags(results, items) {
     for (const item of items) item.hidden = Boolean(type) && item.dataset.type !== type;
     fileList.scrollTop = 0;
   });
-  bar.append(leftArrow, track, rightArrow);
+  bar.append(leftArrow, track, rightArrow, renderSortSelect());
   return bar;
 }
 
@@ -287,7 +337,7 @@ async function runSearch() {
   const searchId = ++currentSearchId;
 
   try {
-    const { results, limitReached, status } = await window.electronAPI.search(keyword, isAiSearch());
+    const { results, limitReached, status } = await window.electronAPI.search(keyword, isAiSearch(), sortOrder);
     if (searchId !== currentSearchId) return;
     indexStatus = status;
 
