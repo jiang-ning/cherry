@@ -129,11 +129,11 @@ let sortOrder = localStorage.getItem(SORT_ORDER_KEY) === 'newest' ? 'newest' : '
 function renderSortSelect() {
   const select = document.createElement('select');
   select.className = 'sort-select';
-  for (const [value, key, failback] of [
-    ['relevance', '__bast_match__', 'Best match'],
+  for (const [value, key, fallback] of [
+    ['relevance', '__best_match__', 'Best match'],
     ['newest', '__newest__', 'Newest']
   ]) {
-    select.append(new Option(translate(key) || failback, value, false, value === sortOrder));
+    select.append(new Option(translate(key) || fallback, value, false, value === sortOrder));
   }
   select.addEventListener('change', () => {
     sortOrder = select.value;

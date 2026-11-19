@@ -19,7 +19,7 @@ const STATE_SKIPPED = 2;
 
 const SORT_ORDERS = {
   newest: 'modifiedMs DESC',
-  // bm25() is lower for better matches; the LIKE path has no rank and fails back to match count.
+  // bm25() is lower for better matches; the LIKE path has no rank and falls back to match count.
   relevance: 'rank, matchCount DESC, modifiedMs DESC'
 };
 
