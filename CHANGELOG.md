@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.0]
+
+### Sorting
+- Sort search results by "Best match" (default) or "Newest" from the dropdown next to the file type tags. The choice is remembered.
+- Best match ranks files by relevance. Files whose name matches come first when searching file names is turned on. In AI mode, results are ranked by how closely they match the meaning of the search.
+
 ## [1.3.0]
 
 ### Preview panel
