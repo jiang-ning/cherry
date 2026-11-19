@@ -95,6 +95,8 @@ const Languages = {
     "__ai_not_ready__": "غير جاهز.",
     "__ai_files_analyzed__": "ملفات تم تحليلها.",
     "__ai_match__": "مطابقة الذكاء الاصطناعي",
+    "__best_match__": "أفضل تطابق",
+    "__newest__": "الأحدث",
     "__ai_mode_not_ready__": "وضع الذكاء الاصطناعي ليس جاهزاً.",
   },
   "de": {
@@ -193,6 +195,8 @@ const Languages = {
     "__ai_not_ready__": "Nicht bereit.",
     "__ai_files_analyzed__": "Dateien analysiert.",
     "__ai_match__": "KI-Treffer",
+    "__best_match__": "Beste Übereinstimmung",
+    "__newest__": "Neueste",
     "__ai_mode_not_ready__": "KI-Modus ist nicht bereit.",
   },
   "en": {
@@ -391,6 +395,8 @@ const Languages = {
     "__ai_not_ready__": "No listo.",
     "__ai_files_analyzed__": "archivos analizados.",
     "__ai_match__": "Coincidencia de IA",
+    "__best_match__": "Mejor coincidencia",
+    "__newest__": "Más reciente",
     "__ai_mode_not_ready__": "El Modo IA no está listo.",
   },
   "fr": {
@@ -489,6 +495,8 @@ const Languages = {
     "__ai_not_ready__": "Pas prêt.",
     "__ai_files_analyzed__": "fichiers analysés.",
     "__ai_match__": "Correspondance IA",
+    "__best_match__": "Meilleure correspondance",
+    "__newest__": "Plus récent",
     "__ai_mode_not_ready__": "Le mode IA n'est pas prêt.",
   },
   "it": {
@@ -587,6 +595,8 @@ const Languages = {
     "__ai_not_ready__": "Non pronto.",
     "__ai_files_analyzed__": "file analizzati.",
     "__ai_match__": "Corrispondenza IA",
+    "__best_match__": "Migliore corrispondenza",
+    "__newest__": "Più recente",
     "__ai_mode_not_ready__": "La modalità IA non è pronta.",
   },
   "jp": {
@@ -685,6 +695,8 @@ const Languages = {
     "__ai_not_ready__": "準備ができていません。",
     "__ai_files_analyzed__": "個のファイルが分析されました。",
     "__ai_match__": "AI一致",
+    "__best_match__": "ベストマッチ",
+    "__newest__": "最新",
     "__ai_mode_not_ready__": "AIモードの準備ができていません。",
   },
   "zhCN": {
@@ -783,6 +795,8 @@ const Languages = {
     "__ai_not_ready__": "未就绪。",
     "__ai_files_analyzed__": "文件已分析。",
     "__ai_match__": "AI 匹配",
+    "__best_match__": "最佳匹配",
+    "__newest__": "最新",
     "__ai_mode_not_ready__": "AI 模式未就绪。",
   },
   "zhTW": {
@@ -881,6 +895,8 @@ const Languages = {
     "__ai_not_ready__": "未就緒。",
     "__ai_files_analyzed__": "檔案已分析。",
     "__ai_match__": "AI 比對",
+    "__best_match__": "最佳匹配",
+    "__newest__": "最新",
     "__ai_mode_not_ready__": "AI 模式未就緒。",
   },
 }
